@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAMA - Experiências Interativas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #f0ece6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            letter-spacing: 0.3em;
+            margin-bottom: 0.5em;
+            font-weight: 300;
+        }
+        p {
+            font-size: 1rem;
+            opacity: 0.6;
+            margin-bottom: 2em;
+        }
+        .versions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            max-width: 800px;
+            padding: 0 1rem;
+        }
+        a {
+            display: block;
+            padding: 1rem 2rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #f0ece6;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            text-align: center;
+        }
+        a:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        a .version { font-size: 1.2rem; font-weight: 600; }
+        a .desc { font-size: 0.75rem; opacity: 0.5; margin-top: 0.3em; }
+        .latest {
+            border-color: #06FFA5;
+            background: rgba(6,255,165,0.05);
+        }
+        .latest:hover {
+            border-color: #06FFA5;
+            background: rgba(6,255,165,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>TRAMA</h1>
+    <p>Experiências Interativas - Jornadas do Design</p>
+    <div class="versions">
+        <a href="v07-interactiva/" class="latest">
+            <div class="version">V07</div>
+            <div class="desc">Wireframe + Esqueleto (atual)</div>
+        </a>
+        <a href="v06-interactiva/">
+            <div class="version">V06</div>
+            <div class="desc">Foto textura mãos</div>
+        </a>
+        <a href="v05-interactiva/">
+            <div class="version">V05</div>
+            <div class="desc">Multi-efeitos</div>
+        </a>
+        <a href="v04-interactiva/">
+            <div class="version">V04</div>
+            <div class="desc">Letras TRAMA</div>
+        </a>
+        <a href="v03-interactiva/">
+            <div class="version">V03</div>
+            <div class="desc">Linhas coloridas</div>
+        </a>
+        <a href="v02-interactiva/">
+            <div class="version">V02</div>
+            <div class="desc">Grelha elástica</div>
+        </a>
+        <a href="v01-interactiva/">
+            <div class="version">V01</div>
+            <div class="desc">Prototype original</div>
+        </a>
+    </div>
+</body>
+</html>

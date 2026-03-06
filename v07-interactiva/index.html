@@ -227,7 +227,7 @@
     <div id="status">Clica "Ativar Camera" - Move as maos para interagir</div>
 
     <div class="canvas-container">
-        <video id="webcam" autoplay playsinline></video>
+        <video id="webcam" autoplay playsinline muted></video>
         <canvas id="mainCanvas"></canvas>
     </div>
 
@@ -595,6 +595,35 @@
             btn.disabled = true; btn.textContent = 'A iniciar...';
             document.getElementById('status').textContent = 'A iniciar camera...';
             try {
+                // Safari fix: Pre-check camera permission with explicit getUserMedia
+                // Safari requires this explicit call before MediaPipe Camera can access the stream
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('O teu browser nao suporta acesso a camera. Usa Chrome ou Safari recente.');
+                }
+
+                // Check HTTPS requirement (Safari and modern browsers require secure context)
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    console.warn('Camera access may require HTTPS. Current protocol:', location.protocol);
+                }
+
+                // Request camera permission explicitly first (critical for Safari)
+                let preStream;
+                try {
+                    preStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+                } catch (permErr) {
+                    if (permErr.name === 'NotAllowedError') {
+                        throw new Error('Permissao de camera negada. Vai a Definicoes do browser e permite acesso a camera para este site.');
+                    } else if (permErr.name === 'NotFoundError') {
+                        throw new Error('Nenhuma camera encontrada. Verifica se o dispositivo tem camera.');
+                    } else if (permErr.name === 'NotReadableError') {
+                        throw new Error('Camera em uso por outra aplicacao. Fecha outras apps que usem a camera.');
+                    } else {
+                        throw permErr;
+                    }
+                }
+                // Stop the pre-check stream (MediaPipe Camera will create its own)
+                preStream.getTracks().forEach(t => t.stop());
+
                 hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
                 hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
                 hands.onResults(onHandResults);
@@ -609,7 +638,7 @@
                 btn.disabled = false; btn.onclick = stopCamera;
                 animate();
             } catch (error) {
-                console.error('Erro:', error);
+                console.error('Erro camera:', error);
                 document.getElementById('status').textContent = 'Erro: ' + error.message;
                 btn.textContent = 'Tentar Novamente'; btn.disabled = false;
             }
