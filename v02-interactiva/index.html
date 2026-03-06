@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAMA - Jornadas do Design</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        /* Hamburger button */
+        #menuToggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 0;
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #menuToggle:hover {
+            background: rgba(0, 0, 0, 0.85);
+        }
+        #menuToggle span {
+            display: block;
+            width: 16px;
+            height: 2px;
+            background: white;
+            border-radius: 1px;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        #menuToggle.open span:nth-child(1) {
+            transform: translateY(6px) rotate(45deg);
+        }
+        #menuToggle.open span:nth-child(2) {
+            opacity: 0;
+        }
+        #menuToggle.open span:nth-child(3) {
+            transform: translateY(-6px) rotate(-45deg);
+        }
+
+        #controls {
+            position: absolute;
+            top: 52px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            z-index: 150;
+            min-width: 180px;
+            max-height: calc(100vh - 65px);
+            overflow-y: auto;
+            transform: translateX(calc(100% + 20px));
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #controls.visible {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 4px;
+        }
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .control-group {
+            margin-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.7;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 2px;
+            height: 18px;
+        }
+
+        .value-display {
+            text-align: right;
+            font-size: 11px;
+            margin-top: 1px;
+            font-weight: bold;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 7px;
+            background: #E63946;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #webcam {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.5;
+        }
+
+        #mainCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <button id="menuToggle" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>Elasticidade</label>
+            <input type="range" id="elasticity" min="0.02" max="0.15" step="0.01" value="0.08">
+            <div class="value-display" id="elasticity-value">0.08</div>
+        </div>
+
+        <div class="control-group">
+            <label>Densidade de Malha</label>
+            <input type="range" id="gridDensity" min="15" max="35" step="2" value="25">
+            <div class="value-display" id="density-value">25</div>
+        </div>
+
+        <div class="control-group">
+            <label>Raio de Captura</label>
+            <input type="range" id="captureRadius" min="30" max="100" step="5" value="60">
+            <div class="value-display" id="capture-value">60</div>
+        </div>
+
+        <div class="control-group">
+            <label>Opacidade Vídeo</label>
+            <input type="range" id="videoOpacity" min="0" max="100" step="5" value="50">
+            <div class="value-display" id="opacity-value">50%</div>
+        </div>
+
+        <div class="control-group">
+            <label>Volume Som</label>
+            <input type="range" id="soundVolume" min="0" max="100" step="5" value="70">
+            <div class="value-display" id="volume-value">70%</div>
+        </div>
+
+        <div class="control-group">
+            <label>Instrumento</label>
+            <select id="instrumentSelect" style="width: 100%; padding: 5px; border-radius: 4px; background: #333; color: white; border: none; font-size: 12px;">
+                <option value="piano">Piano</option>
+                <option value="cello">Violoncelo</option>
+                <option value="trumpet">Trompete</option>
+                <option value="bass">Contrabaixo</option>
+                <option value="drums">Bateria</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="faceTracking" checked style="width: auto; margin: 0;">
+                <span>Face Mesh</span>
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>Opacidade Tracking</label>
+            <input type="range" id="trackingOpacity" min="0" max="100" step="5" value="60">
+            <div class="value-display" id="tracking-opacity-value">60%</div>
+        </div>
+
+        <div class="control-group">
+            <label>Oitava</label>
+            <div style="display: flex; gap: 4px;">
+                <button id="octaveDown" style="flex: 1; padding: 3px; font-size: 14px;">-</button>
+                <div class="value-display" id="octave-value" style="flex: 1; text-align: center; line-height: 24px;">0</div>
+                <button id="octaveUp" style="flex: 1; padding: 3px; font-size: 14px;">+</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button id="enableCamera">Ativar Câmera</button>
+        </div>
+    </div>
+
+    <div id="status">Clica "Ativar Câmera" - Move mãos para frente/trás para ver profundidade 3D</div>
+
+    <div class="canvas-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+    <script>
+        // ============================================
+        // AUDIO CONTEXT & SYNTH
+        // ============================================
+        let audioContext;
+        let masterGain;
+        let currentInstrument = 'piano';
+        let currentOctave = 0;
+        let showFaceTracking = true;
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+            masterGain.gain.value = 0.4;
+        }
+
+        // HARPA - Som cristalino com harmónicos
+        function playHarp(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const duration = 2.0 + depth * 3;
+            const now = audioContext.currentTime;
+
+            const harmonics = [1, 2, 3, 4];
+            const gains = [1, 0.5, 0.3, 0.15];
+
+            for (let i = 0; i < harmonics.length; i++) {
+                const osc = audioContext.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = frequency * harmonics[i];
+
+                const envelope = audioContext.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(velocity * 0.4 * gains[i], now + 0.005);
+                envelope.gain.exponentialRampToValueAtTime(velocity * 0.2 * gains[i], now + 0.1);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 3000 + depth * 4000;
+                filter.Q.value = 2;
+
+                osc.connect(filter);
+                filter.connect(envelope);
+                envelope.connect(masterGain);
+
+                osc.start(now);
+                osc.stop(now + duration + 0.1);
+            }
+        }
+
+        // PIANO - FM Synthesis
+        function playPiano(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const duration = 1.5 + depth * 2;
+            const now = audioContext.currentTime;
+
+            const modulator = audioContext.createOscillator();
+            modulator.type = 'sine';
+            modulator.frequency.value = frequency * 2;
+
+            const modGain = audioContext.createGain();
+            modGain.gain.setValueAtTime(frequency * (0.5 + depth), now);
+            modGain.gain.exponentialRampToValueAtTime(frequency * 0.01, now + duration);
+
+            const carrier = audioContext.createOscillator();
+            carrier.type = 'sine';
+            carrier.frequency.value = frequency;
+
+            const envelope = audioContext.createGain();
+            envelope.gain.setValueAtTime(0, now);
+            envelope.gain.linearRampToValueAtTime(velocity * 0.5, now + 0.01);
+            envelope.gain.exponentialRampToValueAtTime(velocity * 0.3, now + 0.1);
+            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            modulator.connect(modGain);
+            modGain.connect(carrier.frequency);
+            carrier.connect(envelope);
+            envelope.connect(masterGain);
+
+            modulator.start(now);
+            carrier.start(now);
+            modulator.stop(now + duration + 0.1);
+            carrier.stop(now + duration + 0.1);
+        }
+
+        // CELLO - 3 osciladores + vibrato
+        function playCello(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const duration = 3.0 + depth * 4;
+            const now = audioContext.currentTime;
+
+            const vibrato = audioContext.createOscillator();
+            vibrato.type = 'sine';
+            vibrato.frequency.value = 5 + depth * 3;
+
+            const vibratoGain = audioContext.createGain();
+            vibratoGain.gain.value = frequency * 0.008;
+
+            vibrato.connect(vibratoGain);
+
+            const oscillators = [
+                { type: 'sawtooth', detune: 0, gain: 0.4 },
+                { type: 'sawtooth', detune: 7, gain: 0.3 },
+                { type: 'triangle', detune: -5, gain: 0.2 }
+            ];
+
+            for (let oscConfig of oscillators) {
+                const osc = audioContext.createOscillator();
+                osc.type = oscConfig.type;
+                osc.frequency.value = frequency;
+                osc.detune.value = oscConfig.detune;
+
+                vibratoGain.connect(osc.frequency);
+
+                const envelope = audioContext.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(velocity * oscConfig.gain, now + 0.15);
+                envelope.gain.setValueAtTime(velocity * oscConfig.gain * 0.8, now + 0.3);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2000 + depth * 3000;
+                filter.Q.value = 1;
+
+                osc.connect(filter);
+                filter.connect(envelope);
+                envelope.connect(masterGain);
+
+                osc.start(now);
+                osc.stop(now + duration + 0.1);
+            }
+
+            vibrato.start(now);
+            vibrato.stop(now + duration + 0.1);
+        }
+
+        // TRUMPET - Square wave + harmónicos ímpares
+        function playTrumpet(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const duration = 1.0 + depth * 2;
+            const now = audioContext.currentTime;
+
+            const osc1 = audioContext.createOscillator();
+            osc1.type = 'square';
+            osc1.frequency.value = frequency;
+
+            const osc2 = audioContext.createOscillator();
+            osc2.type = 'sawtooth';
+            osc2.frequency.value = frequency * 3;
+
+            const envelope = audioContext.createGain();
+            envelope.gain.setValueAtTime(0, now);
+            envelope.gain.linearRampToValueAtTime(velocity * 0.3, now + 0.05);
+            envelope.gain.setValueAtTime(velocity * 0.25, now + 0.1);
+            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1500 + depth * 5000;
+            filter.Q.value = 5;
+
+            const mix = audioContext.createGain();
+            mix.gain.value = 1;
+
+            osc1.connect(mix);
+            const osc2Gain = audioContext.createGain();
+            osc2Gain.gain.value = 0.15;
+            osc2.connect(osc2Gain);
+            osc2Gain.connect(mix);
+
+            mix.connect(filter);
+            filter.connect(envelope);
+            envelope.connect(masterGain);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + duration + 0.1);
+            osc2.stop(now + duration + 0.1);
+        }
+
+        // BASS - Sawtooth + sub-harmónico
+        function playBass(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const bassFreq = frequency / 2;
+            const duration = 1.5 + depth * 2;
+            const now = audioContext.currentTime;
+
+            const osc1 = audioContext.createOscillator();
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = bassFreq;
+
+            const osc2 = audioContext.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = bassFreq / 2;
+
+            const envelope = audioContext.createGain();
+            envelope.gain.setValueAtTime(0, now);
+            envelope.gain.linearRampToValueAtTime(velocity * 0.5, now + 0.02);
+            envelope.gain.exponentialRampToValueAtTime(velocity * 0.3, now + 0.1);
+            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800 + depth * 2000, now);
+            filter.frequency.exponentialRampToValueAtTime(200, now + duration);
+            filter.Q.value = 3;
+
+            const mix = audioContext.createGain();
+            osc1.connect(mix);
+            const subGain = audioContext.createGain();
+            subGain.gain.value = 0.6;
+            osc2.connect(subGain);
+            subGain.connect(mix);
+
+            mix.connect(filter);
+            filter.connect(envelope);
+            envelope.connect(masterGain);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + duration + 0.1);
+            osc2.stop(now + duration + 0.1);
+        }
+
+        // DRUMS - Percussão
+        function playDrums(frequency, velocity, depth) {
+            if (!audioContext) return;
+
+            const now = audioContext.currentTime;
+            const drumType = Math.floor(Math.random() * 10);
+
+            if (drumType < 3) {
+                // Kick
+                const osc = audioContext.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+
+                const env = audioContext.createGain();
+                env.gain.setValueAtTime(velocity * 0.8, now);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                osc.connect(env);
+                env.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (drumType < 6) {
+                // Snare (noise + tone)
+                const bufferSize = audioContext.sampleRate * 0.2;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+                }
+
+                const noise = audioContext.createBufferSource();
+                noise.buffer = buffer;
+
+                const noiseEnv = audioContext.createGain();
+                noiseEnv.gain.setValueAtTime(velocity * 0.5, now);
+                noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+
+                noise.connect(filter);
+                filter.connect(noiseEnv);
+                noiseEnv.connect(masterGain);
+                noise.start(now);
+            } else {
+                // Hi-hat
+                const bufferSize = audioContext.sampleRate * 0.1;
+                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
+                }
+
+                const noise = audioContext.createBufferSource();
+                noise.buffer = buffer;
+
+                const env = audioContext.createGain();
+                env.gain.setValueAtTime(velocity * 0.3, now);
+                env.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+
+                noise.connect(filter);
+                filter.connect(env);
+                env.connect(masterGain);
+                noise.start(now);
+            }
+        }
+
+        function playSound(frequency, velocity, depth) {
+            const octaveMultiplier = Math.pow(2, currentOctave);
+            const adjustedFrequency = frequency * octaveMultiplier;
+
+            switch (currentInstrument) {
+                case 'piano': playPiano(adjustedFrequency, velocity, depth); break;
+                case 'cello': playCello(adjustedFrequency, velocity, depth); break;
+                case 'trumpet': playTrumpet(adjustedFrequency, velocity, depth); break;
+                case 'bass': playBass(adjustedFrequency, velocity, depth); break;
+                case 'drums': playDrums(adjustedFrequency, velocity, depth); break;
+                default: playPiano(adjustedFrequency, velocity, depth);
+            }
+        }
+
+        // ============================================
+        // STATE
+        // ============================================
+        let canvas, ctx, webcam;
+        let hands, faceMesh, camera;
+        let isRunning = false;
+        let allFingers = [];
+        let allHandLandmarks = [];
+        let faceLandmarks = null;
+
+        const CONFIG = {
+            elasticity: 0.08,
+            damping: 0.92,
+            gridDensity: 25,
+            captureRadius: 60,
+            videoOpacity: 0.5,
+            soundVolume: 0.7,
+            trackingOpacity: 0.6
+        };
+
+        // Grid
+        let points = [];
+        let cols, rows;
+
+        // ============================================
+        // SVG POLYLINES - Base gráfica v02
+        // Extraídas de trama_base_interativa_v01.svg
+        // ViewBox: 0 0 1920 1080
+        // ============================================
+        const svgPolylines = [
+            // Cyan (#00e5ff) - st1
+            {points: "884.14 -3.55 1771.9 1080", color: "#00e5ff"},
+            {points: "1201.6 0 1266.76 1080.6", color: "#00e5ff"},
+            {points: "973.78 0 621.74 1078.41 0 761.84", color: "#00e5ff"},
+            {points: "704.24 0 1051.66 1080.26", color: "#00e5ff"},
+            // Pink (#ff00aa) - st3
+            {points: "0 468.19 1007.98 382.66 1919.89 427.48", color: "#ff00aa"},
+            {points: "0 673.48 923.3 673.48", color: "#ff00aa"},
+            // Purple (#7b61ff) - st0
+            {points: "0 311.59 554.68 420.1", color: "#7b61ff"},
+            {points: "0 537.13 1919.63 886.93", color: "#7b61ff"},
+            {points: "659.16 614.05 805.56 1080", color: "#7b61ff"},
+            // Orange (#ff8800) - st7
+            {points: "0 203.48 974.09 1078.41 1027.57 0", color: "#ff8800"},
+            // Red (#ff3c00) - st2
+            {points: "630.67 0 437.71 1080.78", color: "#ff3c00"},
+            {points: "1920 411.89 245.89 1080.26", color: "#ff3c00"},
+            {points: "1230.71 0 1097.28 385.85", color: "#ff3c00"},
+            // Yellow-green (#c8ff00) - st5
+            {points: "368.1 533.59 413.7 1081.16", color: "#c8ff00"},
+            {points: "1919.9 630.13 997.66 583.87", color: "#c8ff00"},
+            {points: "461.16 427.94 422.19 0", color: "#c8ff00"},
+            {points: "376.56 639.24 997.66 583.87", color: "#c8ff00"}
+        ];
+
+        // Border rectangle
+        const svgBorder = {color: "#f0ece6", width: 1920, height: 1080.26};
+
+        const SVG_AREA = {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080
+        };
+
+        // Escalas musicais
+        const SCALE_NOTES = [
+            220.00, // A3
+            246.94, // B3
+            261.63, // C4
+            293.66, // D4
+            329.63, // E4
+            349.23, // F4
+            392.00, // G4
+            440.00, // A4
+            493.88, // B4
+            523.25  // C5
+        ];
+
+        // ============================================
+        // POINT CLASS
+        // ============================================
+        class Point {
+            constructor(x, y, col, row) {
+                this.x = x;
+                this.y = y;
+                this.z = 0;
+                this.originalX = x;
+                this.originalY = y;
+                this.originalZ = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.vz = 0;
+                this.col = col;
+                this.row = row;
+                this.attachedToFinger = false;
+                this.attachedFingerX = 0;
+                this.attachedFingerY = 0;
+                this.attachedFingerZ = 0;
+                this.lastSoundTime = 0;
+            }
+
+            update() {
+                if (this.attachedToFinger) {
+                    const velocityMagnitude = Math.sqrt(this.vx ** 2 + this.vy ** 2);
+
+                    this.x = this.attachedFingerX;
+                    this.y = this.attachedFingerY;
+                    this.z = this.attachedFingerZ;
+
+                    const now = Date.now();
+                    if (velocityMagnitude > 2 && now - this.lastSoundTime > 150) {
+                        this.triggerSound(velocityMagnitude);
+                        this.lastSoundTime = now;
+                    }
+
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.vz = 0;
+                } else {
+                    let fx = (this.originalX - this.x) * CONFIG.elasticity;
+                    let fy = (this.originalY - this.y) * CONFIG.elasticity;
+                    let fz = (this.originalZ - this.z) * CONFIG.elasticity * 2;
+
+                    this.vx += fx;
+                    this.vy += fy;
+                    this.vz += fz;
+
+                    this.vx *= CONFIG.damping;
+                    this.vy *= CONFIG.damping;
+                    this.vz *= CONFIG.damping * 0.9;
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.z += this.vz;
+                }
+            }
+
+            triggerSound(velocity) {
+                const noteIndex = Math.floor((this.col / cols) * SCALE_NOTES.length);
+                const frequency = SCALE_NOTES[Math.min(noteIndex, SCALE_NOTES.length - 1)];
+                const normalizedVelocity = Math.min(velocity / 20, 1);
+                const normalizedDepth = Math.abs(this.z) / 100;
+                playSound(frequency, normalizedVelocity, normalizedDepth);
+            }
+
+            reset() {
+                this.attachedToFinger = false;
+            }
+        }
+
+        // ============================================
+        // GRID SETUP
+        // ============================================
+        function createGrid() {
+            points = [];
+
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
+
+            cols = CONFIG.gridDensity;
+            rows = Math.floor(cols * (svgH / svgW));
+
+            let spacingX = svgW / cols;
+            let spacingY = svgH / rows;
+
+            for (let i = 0; i <= cols; i++) {
+                points[i] = [];
+                for (let j = 0; j <= rows; j++) {
+                    let x = offsetX + i * spacingX;
+                    let y = offsetY + j * spacingY;
+                    points[i][j] = new Point(x, y, i, j);
+                }
+            }
+        }
+
+        // ============================================
+        // COLOR UTILITY
+        // ============================================
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) {
+                hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            }
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return {r, g, b};
+        }
+
+        // ============================================
+        // RENDER
+        // ============================================
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Reset attachment
+            for (let i = 0; i <= cols; i++) {
+                for (let j = 0; j <= rows; j++) {
+                    points[i][j].reset();
+                }
+            }
+
+            // Attach points to fingers (com Z)
+            for (let finger of allFingers) {
+                for (let i = 0; i <= cols; i++) {
+                    for (let j = 0; j <= rows; j++) {
+                        let p = points[i][j];
+                        let dist = Math.sqrt((p.x - finger.x) ** 2 + (p.y - finger.y) ** 2);
+
+                        if (dist < CONFIG.captureRadius) {
+                            p.attachedToFinger = true;
+                            p.attachedFingerX = finger.x;
+                            p.attachedFingerY = finger.y;
+                            p.attachedFingerZ = finger.z * 500;
+                        }
+                    }
+                }
+            }
+
+            // Update physics
+            for (let i = 0; i <= cols; i++) {
+                for (let j = 0; j <= rows; j++) {
+                    points[i][j].update();
+                }
+            }
+
+            // Draw wireframe (hands skeleton)
+            drawHandsWireframe();
+
+            // Draw face tracking
+            if (showFaceTracking) {
+                drawFaceTracking();
+            }
+
+            // Draw border rectangle
+            drawDistortedBorder();
+
+            // Draw distorted polylines (com cores e profundidade)
+            drawDistortedPolylines();
+        }
+
+        function drawHandsWireframe() {
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4],
+                [0, 5], [5, 6], [6, 7], [7, 8],
+                [0, 9], [9, 10], [10, 11], [11, 12],
+                [0, 13], [13, 14], [14, 15], [15, 16],
+                [0, 17], [17, 18], [18, 19], [19, 20],
+                [5, 9], [9, 13], [13, 17]
+            ];
+
+            const opacity = CONFIG.trackingOpacity;
+
+            for (let handIdx = 0; handIdx < allHandLandmarks.length; handIdx++) {
+                let landmarks = allHandLandmarks[handIdx];
+
+                ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                for (let [a, b] of connections) {
+                    ctx.moveTo(landmarks[a].x, landmarks[a].y);
+                    ctx.lineTo(landmarks[b].x, landmarks[b].y);
+                }
+                ctx.stroke();
+
+                // Fingertips com tamanho baseado em Z
+                for (let idx of [4, 8, 12, 16, 20]) {
+                    let z = landmarks[idx].z;
+                    let size = 12 + z * 40;
+                    let alpha = (0.7 + z * 0.3) * opacity;
+
+                    ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0.3, Math.min(1, alpha))})`;
+                    ctx.beginPath();
+                    ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(6, size), 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.2, Math.min(0.8, alpha * 0.5))})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(10, size + 5), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Wrist
+                ctx.fillStyle = `rgba(68, 136, 255, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(landmarks[0].x, landmarks[0].y, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Capture zones
+            ctx.strokeStyle = `rgba(255, 200, 50, ${opacity * 0.5})`;
+            ctx.lineWidth = 2;
+            for (let finger of allFingers) {
+                ctx.beginPath();
+                ctx.arc(finger.x, finger.y, CONFIG.captureRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        function drawFaceTracking() {
+            if (!faceLandmarks) return;
+
+            const opacity = CONFIG.trackingOpacity;
+
+            const FACEMESH_TESSELATION = [
+                [127,34,139],[34,139,127],[11,0,37],[37,11,0],[232,231,120],[231,120,232],
+                [72,37,39],[37,39,72],[128,121,47],[121,47,128],[232,121,128],[121,128,232],
+                [104,69,67],[69,67,104],[175,171,148],[171,148,175],[118,50,101],[50,101,118],
+                [73,39,40],[39,40,73],[9,151,108],[151,108,9],[71,68,104],[68,104,71],
+                [67,109,10],[109,10,67],[38,71,70],[71,70,38],[156,143,116],[143,116,156],
+                [98,97,2],[326,2,97],[168,6,197],[195,5,4],[129,49,131],[49,129,209],
+                [61,146,91],[181,84,17],[314,405,321],[375,291,409],[270,269,267],
+                [0,11,12],[302,268,12],[271,304,408],[310,415,308],
+                [324,318,402],[317,14,87],[178,88,95],
+                [10,338,297],[332,284,251],[389,356,454],
+                [323,361,288],[397,365,379],[378,400,377],
+                [152,148,176],[149,150,136],[172,58,132],
+                [93,234,127],[127,162,21],[54,103,67],
+                [109,67,10],[151,9,337],
+                [10,109,338],[338,109,297],[297,109,332],[332,109,284],
+                [284,109,251],[251,109,389],[389,109,356],[356,109,454],
+                [10,67,338],[338,67,297],[297,67,332],[332,67,284],
+                [284,67,251],[251,67,389],[389,67,356],[356,67,454]
+            ];
+
+            // Mesh triangles
+            ctx.strokeStyle = `rgba(100, 200, 255, ${opacity * 0.15})`;
+            ctx.lineWidth = 0.5;
+
+            for (let triangle of FACEMESH_TESSELATION) {
+                const [a, b, c] = triangle;
+                if (a < faceLandmarks.length && b < faceLandmarks.length && c < faceLandmarks.length) {
+                    ctx.beginPath();
+                    ctx.moveTo(faceLandmarks[a].x, faceLandmarks[a].y);
+                    ctx.lineTo(faceLandmarks[b].x, faceLandmarks[b].y);
+                    ctx.lineTo(faceLandmarks[c].x, faceLandmarks[c].y);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            }
+
+            // Eyes
+            const LEFT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+            const RIGHT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
+
+            for (let eye of [LEFT_EYE, RIGHT_EYE]) {
+                ctx.strokeStyle = `rgba(0, 255, 255, ${opacity * 0.8})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < eye.length; i++) {
+                    const idx = eye[i];
+                    if (idx < faceLandmarks.length) {
+                        if (i === 0) ctx.moveTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
+                        else ctx.lineTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
+                    }
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            // Lips
+            const LIPS_OUTER = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185, 61];
+            const LIPS_INNER = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
+
+            for (let lips of [LIPS_OUTER, LIPS_INNER]) {
+                ctx.strokeStyle = `rgba(255, 0, 170, ${opacity * 0.7})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i < lips.length; i++) {
+                    const idx = lips[i];
+                    if (idx < faceLandmarks.length) {
+                        if (i === 0) ctx.moveTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
+                        else ctx.lineTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+
+        // ============================================
+        // DISTORTED BORDER
+        // ============================================
+        function drawDistortedBorder() {
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
+
+            // 4 corners of the border rect, distorted
+            const corners = [
+                {svgX: 0, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: SVG_AREA.height},
+                {svgX: 0, svgY: SVG_AREA.height}
+            ];
+
+            // Subdivide each edge for smoother distortion
+            const subdivisions = 20;
+            const borderPts = [];
+
+            for (let edge = 0; edge < 4; edge++) {
+                const c1 = corners[edge];
+                const c2 = corners[(edge + 1) % 4];
+
+                for (let s = 0; s < subdivisions; s++) {
+                    const t = s / subdivisions;
+                    const svgX = c1.svgX + (c2.svgX - c1.svgX) * t;
+                    const svgY = c1.svgY + (c2.svgY - c1.svgY) * t;
+
+                    const x = (svgX / SVG_AREA.width) * svgW + offsetX;
+                    const y = (svgY / SVG_AREA.height) * svgH + offsetY;
+
+                    borderPts.push(getDistortedPoint(x, y));
+                }
+            }
+
+            // Draw border
+            if (borderPts.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(borderPts[0].x, borderPts[0].y);
+                for (let i = 1; i < borderPts.length; i++) {
+                    ctx.lineTo(borderPts[i].x, borderPts[i].y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(240, 236, 230, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // ============================================
+        // DISTORTED POLYLINES - com cores do SVG
+        // ============================================
+        function drawDistortedPolylines() {
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
+
+            for (let polyline of svgPolylines) {
+                let coords = polyline.points.trim().split(/\s+/);
+                let pts = [];
+
+                for (let i = 0; i < coords.length; i += 2) {
+                    let svgX = parseFloat(coords[i]);
+                    let svgY = parseFloat(coords[i + 1]);
+
+                    // Map from SVG space to canvas space
+                    let x = ((svgX - SVG_AREA.x) / SVG_AREA.width) * svgW + offsetX;
+                    let y = ((svgY - SVG_AREA.y) / SVG_AREA.height) * svgH + offsetY;
+
+                    let distorted = getDistortedPoint(x, y);
+                    pts.push(distorted);
+                }
+
+                if (pts.length < 2) continue;
+
+                // Parse the polyline color
+                const rgb = hexToRgb(polyline.color);
+
+                // Draw each segment with depth-based thickness and opacity
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+
+                for (let i = 1; i < pts.length; i++) {
+                    let avgZ = (pts[i-1].z + pts[i].z) / 2;
+                    let normalizedZ = (avgZ + 150) / 300;
+                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+
+                    // Thickness based on depth (closer = thicker)
+                    let lineWidth = 4 * (0.5 + normalizedZ * 2);
+
+                    // Opacity based on depth (closer = more visible)
+                    let opacity = 0.4 + normalizedZ * 0.6;
+
+                    ctx.lineWidth = lineWidth;
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+
+                    // Glow for close elements
+                    if (normalizedZ > 0.6) {
+                        ctx.shadowColor = polyline.color;
+                        ctx.shadowBlur = (normalizedZ - 0.6) * 25;
+                    } else {
+                        ctx.shadowBlur = 0;
+                    }
+
+                    ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i].x, pts[i].y);
+                }
+
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw TRAMA text + JORNADAS DO DESIGN subtitle
+            drawDistortedTRAMA(offsetX, offsetY, svgW, svgH);
+        }
+
+        function drawDistortedTRAMA(offsetX, offsetY, svgW, svgH) {
+            // TRAMA - Large title
+            let word = 'TRAMA';
+            let letterSpacing = svgW / 8;
+            let startX = offsetX + svgW / 2 - (word.length * letterSpacing) / 2;
+            let centerY = offsetY + svgH * 0.45;
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i < word.length; i++) {
+                let x = startX + i * letterSpacing + letterSpacing / 2;
+                let y = centerY;
+
+                let distorted = getDistortedPoint(x, y);
+
+                let normalizedZ = (distorted.z + 150) / 300;
+                normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+
+                let size = 100 * (0.6 + normalizedZ * 0.8);
+                let opacity = 0.5 + normalizedZ * 0.5;
+
+                ctx.font = `bold ${size}px Helvetica`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+
+                if (normalizedZ > 0.6) {
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                    ctx.shadowBlur = (normalizedZ - 0.6) * 40;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.save();
+                ctx.translate(distorted.x, distorted.y);
+                ctx.fillText(word[i], 0, 0);
+                ctx.restore();
+            }
+
+            // JORNADAS DO DESIGN - Subtitle
+            let subtitle = 'JORNADAS DO DESIGN';
+            let subY = offsetY + svgH * 0.62;
+            let subX = offsetX + svgW / 2;
+
+            let distortedSub = getDistortedPoint(subX, subY);
+
+            let nZ = (distortedSub.z + 150) / 300;
+            nZ = Math.max(0, Math.min(1, nZ));
+
+            let subSize = 28 * (0.6 + nZ * 0.8);
+            let subOpacity = 0.4 + nZ * 0.5;
+
+            ctx.font = `300 ${subSize}px Helvetica`;
+            ctx.fillStyle = `rgba(255, 255, 255, ${subOpacity})`;
+            ctx.letterSpacing = '8px';
+
+            if (nZ > 0.6) {
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                ctx.shadowBlur = (nZ - 0.6) * 20;
+            } else {
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.save();
+            ctx.translate(distortedSub.x, distortedSub.y);
+            ctx.fillText(subtitle, 0, 0);
+            ctx.restore();
+
+            ctx.letterSpacing = '0px';
+            ctx.shadowBlur = 0;
+        }
+
+        function getDistortedPoint(x, y) {
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    let p1 = points[i][j];
+                    let p2 = points[i + 1][j];
+                    let p3 = points[i + 1][j + 1];
+                    let p4 = points[i][j + 1];
+
+                    if (x >= Math.min(p1.originalX, p2.originalX, p3.originalX, p4.originalX) &&
+                        x <= Math.max(p1.originalX, p2.originalX, p3.originalX, p4.originalX) &&
+                        y >= Math.min(p1.originalY, p2.originalY, p3.originalY, p4.originalY) &&
+                        y <= Math.max(p1.originalY, p2.originalY, p3.originalY, p4.originalY)) {
+
+                        let u = (x - p1.originalX) / (p2.originalX - p1.originalX);
+                        let v = (y - p1.originalY) / (p4.originalY - p1.originalY);
+
+                        u = Math.max(0, Math.min(1, u));
+                        v = Math.max(0, Math.min(1, v));
+
+                        let topX = p1.x + u * (p2.x - p1.x);
+                        let topY = p1.y + u * (p2.y - p1.y);
+                        let topZ = p1.z + u * (p2.z - p1.z);
+
+                        let bottomX = p4.x + u * (p3.x - p4.x);
+                        let bottomY = p4.y + u * (p3.y - p4.y);
+                        let bottomZ = p4.z + u * (p3.z - p4.z);
+
+                        return {
+                            x: topX + v * (bottomX - topX),
+                            y: topY + v * (bottomY - topY),
+                            z: topZ + v * (bottomZ - topZ)
+                        };
+                    }
+                }
+            }
+            return {x, y, z: 0};
+        }
+
+        // ============================================
+        // HAND TRACKING
+        // ============================================
+        async function startCamera() {
+            const btn = document.getElementById('enableCamera');
+            btn.disabled = true;
+            btn.textContent = 'A iniciar...';
+            document.getElementById('status').textContent = 'A iniciar câmera...';
+
+            initAudio();
+
+            try {
+                hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.5
+                });
+
+                hands.onResults(onHandResults);
+
+                faceMesh = new FaceMesh({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                });
+
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                faceMesh.onResults(onFaceResults);
+
+                camera = new Camera(webcam, {
+                    onFrame: async () => {
+                        if (isRunning) {
+                            await hands.send({ image: webcam });
+                            if (showFaceTracking) {
+                                await faceMesh.send({ image: webcam });
+                            }
+                        }
+                    },
+                    width: 1280,
+                    height: 720
+                });
+
+                await camera.start();
+                isRunning = true;
+
+                document.getElementById('status').textContent = 'Câmera ativa - Move as mãos!';
+                btn.textContent = '\u2713 Ativa';
+                btn.style.background = '#06FFA5';
+                btn.disabled = false;
+                btn.onclick = stopCamera;
+
+                animate();
+
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('status').textContent = 'Erro: ' + error.message;
+                btn.textContent = 'Tentar Novamente';
+                btn.disabled = false;
+            }
+        }
+
+        function stopCamera() {
+            isRunning = false;
+            if (camera) camera.stop();
+
+            document.getElementById('status').textContent = 'Câmera desligada';
+
+            const btn = document.getElementById('enableCamera');
+            btn.textContent = 'Ativar Câmera';
+            btn.style.background = '#E63946';
+            btn.onclick = startCamera;
+        }
+
+        function onHandResults(results) {
+            allFingers = [];
+            allHandLandmarks = [];
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (let handIdx = 0; handIdx < results.multiHandLandmarks.length; handIdx++) {
+                    const lm = results.multiHandLandmarks[handIdx];
+
+                    const landmarks = lm.map(p => ({
+                        x: (1 - p.x) * canvas.width,
+                        y: p.y * canvas.height,
+                        z: (p.z || 0) * -1
+                    }));
+
+                    allHandLandmarks.push(landmarks);
+
+                    const tipIndices = [4, 8, 12, 16, 20];
+                    for (let tipIdx of tipIndices) {
+                        allFingers.push({
+                            x: landmarks[tipIdx].x,
+                            y: landmarks[tipIdx].y,
+                            z: landmarks[tipIdx].z,
+                            handIndex: handIdx,
+                            fingerIndex: tipIdx
+                        });
+                    }
+                }
+            }
+        }
+
+        function onFaceResults(results) {
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const lm = results.multiFaceLandmarks[0];
+                faceLandmarks = lm.map(p => ({
+                    x: (1 - p.x) * canvas.width,
+                    y: p.y * canvas.height
+                }));
+            } else {
+                faceLandmarks = null;
+            }
+        }
+
+        // ============================================
+        // ANIMATION LOOP
+        // ============================================
+        function animate() {
+            if (!isRunning) return;
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        // ============================================
+        // UI CONTROLS
+        // ============================================
+        function updateSliders() {
+            CONFIG.elasticity = parseFloat(document.getElementById('elasticity').value);
+            CONFIG.gridDensity = parseInt(document.getElementById('gridDensity').value);
+            CONFIG.captureRadius = parseInt(document.getElementById('captureRadius').value);
+            CONFIG.videoOpacity = parseInt(document.getElementById('videoOpacity').value) / 100;
+            CONFIG.soundVolume = parseInt(document.getElementById('soundVolume').value) / 100;
+            CONFIG.trackingOpacity = parseInt(document.getElementById('trackingOpacity').value) / 100;
+
+            document.getElementById('elasticity-value').textContent = CONFIG.elasticity.toFixed(2);
+            document.getElementById('density-value').textContent = CONFIG.gridDensity;
+            document.getElementById('capture-value').textContent = CONFIG.captureRadius;
+            document.getElementById('opacity-value').textContent = document.getElementById('videoOpacity').value + '%';
+            document.getElementById('volume-value').textContent = document.getElementById('soundVolume').value + '%';
+            document.getElementById('tracking-opacity-value').textContent = document.getElementById('trackingOpacity').value + '%';
+
+            webcam.style.opacity = CONFIG.videoOpacity;
+
+            if (masterGain) {
+                masterGain.gain.value = CONFIG.soundVolume;
+            }
+        }
+
+        function updateOctaveDisplay() {
+            const sign = currentOctave > 0 ? '+' : '';
+            document.getElementById('octave-value').textContent = sign + currentOctave;
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        function init() {
+            canvas = document.getElementById('mainCanvas');
+            ctx = canvas.getContext('2d');
+            webcam = document.getElementById('webcam');
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            createGrid();
+
+            // Menu hamburger toggle
+            const menuToggle = document.getElementById('menuToggle');
+            const controlsPanel = document.getElementById('controls');
+
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuToggle.classList.toggle('open');
+                controlsPanel.classList.toggle('visible');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!controlsPanel.contains(e.target) && !menuToggle.contains(e.target)) {
+                    menuToggle.classList.remove('open');
+                    controlsPanel.classList.remove('visible');
+                }
+            });
+
+            // Sliders
+            document.getElementById('elasticity').addEventListener('input', () => {
+                updateSliders();
+                createGrid();
+            });
+
+            document.getElementById('gridDensity').addEventListener('input', () => {
+                updateSliders();
+                createGrid();
+            });
+
+            document.getElementById('captureRadius').addEventListener('input', updateSliders);
+            document.getElementById('videoOpacity').addEventListener('input', updateSliders);
+            document.getElementById('soundVolume').addEventListener('input', updateSliders);
+            document.getElementById('trackingOpacity').addEventListener('input', updateSliders);
+
+            // Instrument selector
+            document.getElementById('instrumentSelect').addEventListener('change', (e) => {
+                currentInstrument = e.target.value;
+            });
+
+            // Face tracking toggle
+            document.getElementById('faceTracking').addEventListener('change', (e) => {
+                showFaceTracking = e.target.checked;
+            });
+
+            // Octave controls
+            document.getElementById('octaveUp').addEventListener('click', () => {
+                if (currentOctave < 6) {
+                    currentOctave++;
+                    updateOctaveDisplay();
+                }
+            });
+
+            document.getElementById('octaveDown').addEventListener('click', () => {
+                if (currentOctave > -6) {
+                    currentOctave--;
+                    updateOctaveDisplay();
+                }
+            });
+
+            // Camera button
+            document.getElementById('enableCamera').addEventListener('click', startCamera);
+
+            // Resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                createGrid();
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
