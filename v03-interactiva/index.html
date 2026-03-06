@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAMA - Jornadas do Design V03</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        #menuToggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 0;
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #menuToggle:hover { background: rgba(0, 0, 0, 0.85); }
+        #menuToggle span {
+            display: block;
+            width: 16px;
+            height: 2px;
+            background: white;
+            border-radius: 1px;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        #menuToggle.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        #menuToggle.open span:nth-child(2) { opacity: 0; }
+        #menuToggle.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+        #controls {
+            position: absolute;
+            top: 52px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            z-index: 150;
+            min-width: 180px;
+            max-height: calc(100vh - 65px);
+            overflow-y: auto;
+            transform: translateX(calc(100% + 20px));
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #controls.visible {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #controls::-webkit-scrollbar { width: 4px; }
+        #controls::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
+
+        .control-group { margin-bottom: 8px; }
+
+        label {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.7;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 2px;
+            height: 18px;
+        }
+
+        .value-display {
+            text-align: right;
+            font-size: 11px;
+            margin-top: 1px;
+            font-weight: bold;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 7px;
+            background: #E63946;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #webcam {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.5;
+        }
+
+        #mainCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Toggle switch styles */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .toggle-row label {
+            margin-bottom: 0;
+            flex: 1;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 2px;
+            bottom: 2px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: #06FFA5;
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(16px);
+        }
+        .toggle-loading {
+            font-size: 9px;
+            color: #06FFA5;
+            text-align: right;
+            margin-top: -4px;
+            margin-bottom: 6px;
+            height: 12px;
+        }
+
+        .separator {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <button id="menuToggle" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <div id="controls">
+        <!-- Real Hands toggle -->
+        <div class="toggle-row">
+            <label>Real Hands</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="realHandsToggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="toggle-loading" id="realHandsStatus"></div>
+
+        <div class="separator"></div>
+
+        <div class="control-group">
+            <label>Elasticidade</label>
+            <input type="range" id="elasticity" min="0.02" max="0.15" step="0.01" value="0.08">
+            <div class="value-display" id="elasticity-value">0.08</div>
+        </div>
+
+        <div class="control-group">
+            <label>Densidade de Malha</label>
+            <input type="range" id="gridDensity" min="15" max="35" step="2" value="25">
+            <div class="value-display" id="density-value">25</div>
+        </div>
+
+        <div class="control-group">
+            <label>Raio de Captura</label>
+            <input type="range" id="captureRadius" min="30" max="100" step="5" value="60">
+            <div class="value-display" id="capture-value">60</div>
+        </div>
+
+        <div class="control-group">
+            <label>Opacidade Video</label>
+            <input type="range" id="videoOpacity" min="0" max="100" step="5" value="50">
+            <div class="value-display" id="opacity-value">50%</div>
+        </div>
+
+        <div class="control-group">
+            <label>Opacidade Tracking</label>
+            <input type="range" id="trackingOpacity" min="0" max="100" step="5" value="60">
+            <div class="value-display" id="tracking-opacity-value">60%</div>
+        </div>
+
+        <div class="control-group">
+            <label>Hand Expand</label>
+            <input type="range" id="handExpand" min="20" max="80" step="5" value="40">
+            <div class="value-display" id="hand-expand-value">40px</div>
+        </div>
+
+        <div class="control-group">
+            <label>Edge Feather</label>
+            <input type="range" id="edgeFeather" min="0" max="30" step="2" value="12">
+            <div class="value-display" id="edge-feather-value">12px</div>
+        </div>
+
+        <div class="control-group">
+            <button id="enableCamera">Ativar Camera</button>
+        </div>
+    </div>
+
+    <div id="status">Clica "Ativar Camera" - Move as maos para interagir</div>
+
+    <div class="canvas-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <script>
+        // ============================================
+        // STATE
+        // ============================================
+        let canvas, ctx, webcam;
+        let hands, camera;
+        let isRunning = false;
+        let allFingers = [];
+        let allHandLandmarks = [];
+
+        // Selfie segmentation state (lazy loaded)
+        let selfieSegmentation = null;
+        let segmentationReady = false;
+        let segmentationMask = null; // ImageBitmap or ImageData of the mask
+        let realHandsEnabled = false;
+        let segmentationLoading = false;
+
+        // Offscreen canvas for compositing real hands
+        let offscreenCanvas = null;
+        let offscreenCtx = null;
+
+        const CONFIG = {
+            elasticity: 0.08,
+            damping: 0.92,
+            gridDensity: 25,
+            captureRadius: 60,
+            videoOpacity: 0.5,
+            trackingOpacity: 0.6,
+            handExpand: 40,
+            edgeFeather: 12
+        };
+
+        let points = [];
+        let cols, rows;
+
+        const SVG_AREA = { x: 0, y: 0, width: 1920, height: 1080 };
+
+        // ============================================
+        // SVG POLYLINES - Layer_3 colored lines
+        // ============================================
+        const svgPolylines = [
+            {points: "884.14 -3.55 1771.9 1080", color: "#00e5ff"},
+            {points: "1201.6 0 1266.76 1080.6", color: "#00e5ff"},
+            {points: "973.78 0 621.74 1078.41 0 761.84", color: "#00e5ff"},
+            {points: "704.24 0 1051.66 1080.26", color: "#00e5ff"},
+            {points: "0 468.19 1007.98 382.66 1919.89 427.48", color: "#ff00aa"},
+            {points: "0 673.48 923.3 673.48", color: "#ff00aa"},
+            {points: "0 311.59 554.68 420.1", color: "#7b61ff"},
+            {points: "0 537.13 1919.63 886.93", color: "#7b61ff"},
+            {points: "659.16 614.05 805.56 1080", color: "#7b61ff"},
+            {points: "0 203.48 974.09 1078.41 1027.57 0", color: "#ff8800"},
+            {points: "630.67 0 437.71 1080.78", color: "#ff3c00"},
+            {points: "1920 411.89 245.89 1080.26", color: "#ff3c00"},
+            {points: "1230.71 0 1097.28 385.85", color: "#ff3c00"},
+            {points: "368.1 533.59 413.7 1081.16", color: "#c8ff00"},
+            {points: "1919.9 630.13 997.66 583.87", color: "#c8ff00"},
+            {points: "461.16 427.94 422.19 0", color: "#c8ff00"},
+            {points: "376.56 639.24 997.66 583.87", color: "#c8ff00"}
+        ];
+
+        // ============================================
+        // TRAMA LETTER PATHS - Layers 7,6,5,4,2
+        // ============================================
+        const TRAMA_LETTERS = [
+            {
+                d: 'M401.35,465.11l14.46,170.8-39.26,3.32-14.46-170.8-61.67,5.22-2.7-31.88,163.43-13.83,2.7,31.88-62.5,5.29Z',
+                cx: 381, cy: 534
+            },
+            {
+                d: 'M571.95,559.82l-14.04,79.02-40.82-7.25,37.59-211.49,70.88,12.6c11.72,2.08,22.07,5.35,31.07,9.79,9,4.45,16.41,9.94,22.25,16.47,5.74,6.51,9.71,14.06,11.93,22.65,2.22,8.59,2.4,18.11.54,28.57-1.34,7.55-3.45,14.2-6.31,19.93-2.87,5.73-6.37,10.68-10.5,14.84-4.25,4.24-9.04,7.73-14.37,10.48-5.33,2.75-11.14,4.91-17.41,6.5l29.95,95.38-.34,1.89-43.72-7.77-25.76-86.09-30.94-5.5ZM608.05,532.08c6.29,1.12,12,1.21,17.11.27,5.11-.94,9.47-2.84,13.07-5.69,3-2.26,5.49-5.17,7.47-8.71,1.98-3.54,3.38-7.64,4.21-12.29,1-5.62,1.03-10.73.1-15.34-.93-4.61-2.84-8.62-5.73-12.03-2.56-3.05-5.89-5.64-10.01-7.77-4.12-2.13-8.98-3.69-14.6-4.69l-30.07-5.34-11.77,66.24,30.21,5.37Z',
+                cx: 594, cy: 545
+            },
+            {
+                d: 'M806.62,631.25l-12.17,43.02h-41.89l67.5-206.03h36.08l66.22,206.03h-41.89l-12.03-43.02h-61.84ZM859.11,597.43l-21.08-75.85-21.65,75.85h42.73Z',
+                cx: 837, cy: 571
+            },
+            {
+                d: 'M1071.79,460.75l25.49-74.9,48.47,2.36-9.83,202.19-35.83-1.74,2.91-59.85,6.26-94.49-30.79,86.48-19.3-.94-19.66-85.17-2.75,90.9-2.91,59.85-35.83-1.74,9.83-202.19,48.47,2.36,15.47,76.89Z',
+                cx: 1072, cy: 486
+            },
+            {
+                d: 'M1275.67,623.35l4.41,43.86-38.42,15.16-12.65-213.42,33.1-13.06,135.31,165.02-38.42,15.16-26.6-35.11-56.72,22.38ZM1311.59,573.32l-46.79-61.94,7.59,77.41,39.2-15.47Z',
+                cx: 1313, cy: 569
+            }
+        ];
+
+        const tramaPath2Ds = TRAMA_LETTERS.map(l => ({
+            path: new Path2D(l.d),
+            cx: l.cx,
+            cy: l.cy
+        }));
+
+        // ============================================
+        // SUBTITLE PATHS - Layer_8
+        // ============================================
+        const jornadasPath = new Path2D();
+        [
+            'M1024.27,636.86v15.08c-.02,1-.21,1.92-.57,2.77-.36.84-.86,1.57-1.48,2.17-.62.62-1.36,1.09-2.21,1.44-.85.34-1.77.51-2.78.51s-1.93-.15-2.76-.46c-.83-.31-1.54-.75-2.15-1.32-.62-.57-1.11-1.25-1.47-2.06-.37-.81-.59-1.71-.68-2.72h2.8c.03.61.15,1.17.37,1.68.21.52.5.96.87,1.34.37.39.81.68,1.32.89.51.21,1.08.31,1.72.31s1.24-.12,1.76-.36.96-.57,1.32-.99c.36-.42.63-.9.83-1.45s.3-1.13.32-1.75v-15.08h2.81Z',
+            'M1043.47,651.28c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67-.56.48-1.19.85-1.91,1.12-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34.12-.79.32-1.55.59-2.28.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.56.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.56-.2,2.34ZM1040.85,644.82c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.94-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.27.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z',
+            'M1050.71,649.68v8.84h-2.74v-21.67h6.35c1.01.02,1.96.16,2.86.43.89.27,1.68.67,2.35,1.21.67.54,1.19,1.21,1.57,2.02s.57,1.76.57,2.85c0,.71-.1,1.35-.3,1.93-.2.59-.48,1.12-.84,1.59s-.78.9-1.28,1.26c-.5.37-1.04.68-1.64.94l4.6,9.26v.18h-2.92l-4.26-8.84h-4.33ZM1054.41,647.42c.61,0,1.2-.11,1.74-.29.54-.18,1.03-.45,1.44-.8.41-.35.73-.77.97-1.27s.36-1.08.36-1.73c0-.69-.11-1.3-.34-1.82-.23-.52-.55-.96-.95-1.32-.41-.35-.89-.61-1.45-.79s-1.17-.27-1.84-.28h-3.62v8.3h3.69Z',
+            'M1076.94,658.52l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z',
+            'M1087.56,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1094.07,650.52l-2.86-9.41-2.9,9.41h5.76Z',
+            'M1102.46,636.86h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.29.37.73.65,1.54.84,2.41s.29,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1105.26,656.28h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c0-.67-.07-1.32-.17-1.94s-.26-1.2-.47-1.73c-.27-.69-.63-1.32-1.08-1.88s-1-1.01-1.66-1.36c-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1124.14,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1130.65,650.52l-2.86-9.41-2.9,9.41h5.76Z',
+            'M1150.21,651.37c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77s-1.12-.4-1.64-.57c-.76-.25-1.54-.55-2.33-.9s-1.51-.78-2.15-1.27c-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7-.23-.51-.53-.95-.91-1.32-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.94,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z'
+        ].forEach(d => jornadasPath.addPath(new Path2D(d)));
+
+        const doDesignPath = new Path2D();
+        [
+            'M1010.71,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1013.51,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1043.17,686.26c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67s-1.19.85-1.91,1.12c-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34s.32-1.55.59-2.28c.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.55.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.55-.2,2.34ZM1040.55,679.8c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.95-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.26.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z',
+            'M1065.58,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1068.38,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1087.02,683.49v7.68h10.55v2.34h-13.3v-21.67h13.17v2.35h-10.42v6.96h9.05v2.34h-9.05Z',
+            'M1113.33,686.34c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77-.57-.21-1.12-.4-1.64-.57-.76-.25-1.54-.55-2.33-.9-.79-.35-1.51-.78-2.15-1.27-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7s-.53-.95-.91-1.32c-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.95,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z',
+            'M1133.83,671.83v2.4h-5.19v16.89h5.19v2.38h-13.1v-2.38h5.07v-16.89h-5.07v-2.4h13.1Z',
+            'M1151.97,691.74c-.38.32-.77.6-1.18.84-.69.42-1.44.73-2.25.93s-1.65.3-2.53.29c-.89,0-1.71-.15-2.46-.41s-1.42-.63-2.02-1.09c-.6-.46-1.12-1-1.56-1.62-.45-.63-.82-1.3-1.12-2.04-.31-.72-.54-1.49-.69-2.28-.15-.8-.24-1.61-.25-2.42v-2.51c0-.8.08-1.6.22-2.4s.34-1.57.62-2.3c.28-.73.62-1.42,1.04-2.05s.92-1.18,1.5-1.64c.58-.46,1.23-.82,1.96-1.09.73-.27,1.56-.4,2.47-.4,1.01,0,1.94.16,2.8.47.85.31,1.6.76,2.23,1.33.63.58,1.15,1.29,1.53,2.11s.62,1.73.71,2.75h-2.72c-.11-.62-.28-1.2-.51-1.73-.23-.53-.53-.98-.89-1.36-.38-.38-.82-.67-1.34-.89-.52-.21-1.12-.32-1.8-.32s-1.24.11-1.74.33c-.51.22-.95.52-1.33.9s-.69.82-.94,1.32-.45,1.03-.61,1.58c-.16.56-.27,1.12-.34,1.7-.07.58-.1,1.13-.1,1.67v2.54c0,.55.06,1.11.14,1.69.08.58.22,1.15.39,1.7s.41,1.08.68,1.58c.28.5.62.93,1.01,1.31.39.38.84.68,1.35.9.52.22,1.1.34,1.76.35.38,0,.77,0,1.18-.04.41-.04.81-.12,1.2-.24.39-.12.75-.28,1.09-.48.34-.2.62-.47.85-.8l.03-4.87h-4.41v-2.32h7.02l.04,7.95c-.34.4-.69.76-1.07,1.08Z',
+            'M1168.09,693.5l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z'
+        ].forEach(d => doDesignPath.addPath(new Path2D(d)));
+
+        const JORNADAS_CENTER = { x: 1087, y: 648 };
+        const DODESIGN_CENTER = { x: 1089, y: 683 };
+
+        // ============================================
+        // POINT CLASS
+        // ============================================
+        class Point {
+            constructor(x, y, col, row) {
+                this.x = x;
+                this.y = y;
+                this.z = 0;
+                this.originalX = x;
+                this.originalY = y;
+                this.originalZ = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.vz = 0;
+                this.col = col;
+                this.row = row;
+                this.attachedToFinger = false;
+                this.attachedFingerX = 0;
+                this.attachedFingerY = 0;
+                this.attachedFingerZ = 0;
+            }
+
+            update() {
+                if (this.attachedToFinger) {
+                    this.x = this.attachedFingerX;
+                    this.y = this.attachedFingerY;
+                    this.z = this.attachedFingerZ;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.vz = 0;
+                } else {
+                    let fx = (this.originalX - this.x) * CONFIG.elasticity;
+                    let fy = (this.originalY - this.y) * CONFIG.elasticity;
+                    let fz = (this.originalZ - this.z) * CONFIG.elasticity * 2;
+
+                    this.vx += fx;
+                    this.vy += fy;
+                    this.vz += fz;
+
+                    this.vx *= CONFIG.damping;
+                    this.vy *= CONFIG.damping;
+                    this.vz *= CONFIG.damping * 0.9;
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.z += this.vz;
+                }
+            }
+
+            reset() {
+                this.attachedToFinger = false;
+            }
+        }
+
+        // ============================================
+        // GRID SETUP
+        // ============================================
+        function createGrid() {
+            points = [];
+
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
+
+            cols = CONFIG.gridDensity;
+            rows = Math.floor(cols * (svgH / svgW));
+
+            let spacingX = svgW / cols;
+            let spacingY = svgH / rows;
+
+            for (let i = 0; i <= cols; i++) {
+                points[i] = [];
+                for (let j = 0; j <= rows; j++) {
+                    let x = offsetX + i * spacingX;
+                    let y = offsetY + j * spacingY;
+                    points[i][j] = new Point(x, y, i, j);
+                }
+            }
+        }
+
+        // ============================================
+        // COLOR UTILITY
+        // ============================================
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            return {
+                r: parseInt(hex.substring(0, 2), 16),
+                g: parseInt(hex.substring(2, 4), 16),
+                b: parseInt(hex.substring(4, 6), 16)
+            };
+        }
+
+        // ============================================
+        // DISTORTION - O(1) grid lookup
+        // ============================================
+        function getDistortedPoint(x, y) {
+            if (cols === 0 || rows === 0 || !points[0]) return {x, y, z: 0};
+
+            let minX = points[0][0].originalX;
+            let minY = points[0][0].originalY;
+            let maxX = points[cols][0].originalX;
+            let maxY = points[0][rows].originalY;
+
+            if (x < minX || x > maxX || y < minY || y > maxY) return {x, y, z: 0};
+
+            let u = (x - minX) / (maxX - minX) * cols;
+            let v = (y - minY) / (maxY - minY) * rows;
+
+            let i = Math.floor(u);
+            let j = Math.floor(v);
+
+            i = Math.max(0, Math.min(cols - 1, i));
+            j = Math.max(0, Math.min(rows - 1, j));
+
+            let localU = Math.max(0, Math.min(1, u - i));
+            let localV = Math.max(0, Math.min(1, v - j));
+
+            let p1 = points[i][j];
+            let p2 = points[i + 1][j];
+            let p3 = points[i + 1][j + 1];
+            let p4 = points[i][j + 1];
+
+            let topX = p1.x + localU * (p2.x - p1.x);
+            let topY = p1.y + localU * (p2.y - p1.y);
+            let topZ = p1.z + localU * (p2.z - p1.z);
+
+            let bottomX = p4.x + localU * (p3.x - p4.x);
+            let bottomY = p4.y + localU * (p3.y - p4.y);
+            let bottomZ = p4.z + localU * (p3.z - p4.z);
+
+            return {
+                x: topX + localV * (bottomX - topX),
+                y: topY + localV * (bottomY - topY),
+                z: topZ + localV * (bottomZ - topZ)
+            };
+        }
+
+        // ============================================
+        // SELFIE SEGMENTATION - Lazy loaded
+        // ============================================
+        async function initSelfieSegmentation() {
+            if (selfieSegmentation || segmentationLoading) return;
+            segmentationLoading = true;
+            document.getElementById('realHandsStatus').textContent = 'A carregar modelo...';
+
+            try {
+                // Dynamically load the script
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';
+                    script.crossOrigin = 'anonymous';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+
+                selfieSegmentation = new SelfieSegmentation({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+                });
+
+                selfieSegmentation.setOptions({
+                    modelSelection: 1, // 0 = general, 1 = landscape (faster)
+                    selfieMode: false
+                });
+
+                selfieSegmentation.onResults(onSegmentationResults);
+
+                // Warm up with a single frame
+                if (webcam.readyState >= 2) {
+                    await selfieSegmentation.send({ image: webcam });
+                }
+
+                segmentationReady = true;
+                segmentationLoading = false;
+                document.getElementById('realHandsStatus').textContent = 'Ativo';
+                setTimeout(() => {
+                    document.getElementById('realHandsStatus').textContent = '';
+                }, 2000);
+
+            } catch (err) {
+                console.error('Selfie Segmentation error:', err);
+                segmentationLoading = false;
+                document.getElementById('realHandsStatus').textContent = 'Erro ao carregar';
+                document.getElementById('realHandsToggle').checked = false;
+                realHandsEnabled = false;
+            }
+        }
+
+        function onSegmentationResults(results) {
+            // results.segmentationMask is an ImageBitmap/Canvas with the mask
+            // White = person, black = background
+            segmentationMask = results.segmentationMask;
+        }
+
+        // ============================================
+        // REAL HANDS COMPOSITING
+        // ============================================
+        function drawRealHands() {
+            if (!segmentationMask || allHandLandmarks.length === 0) return;
+
+            // Ensure offscreen canvas matches size
+            if (!offscreenCanvas) {
+                offscreenCanvas = document.createElement('canvas');
+                offscreenCtx = offscreenCanvas.getContext('2d');
+            }
+            offscreenCanvas.width = canvas.width;
+            offscreenCanvas.height = canvas.height;
+
+            const expand = CONFIG.handExpand;
+            const feather = CONFIG.edgeFeather;
+
+            // Step 1: Draw the webcam video (mirrored) onto offscreen
+            offscreenCtx.save();
+            offscreenCtx.translate(canvas.width, 0);
+            offscreenCtx.scale(-1, 1);
+
+            // Cover-fit the video like CSS object-fit: cover
+            const videoAspect = webcam.videoWidth / webcam.videoHeight;
+            const canvasAspect = canvas.width / canvas.height;
+            let drawW, drawH, drawX, drawY;
+            if (canvasAspect > videoAspect) {
+                drawW = canvas.width;
+                drawH = canvas.width / videoAspect;
+                drawX = 0;
+                drawY = (canvas.height - drawH) / 2;
+            } else {
+                drawH = canvas.height;
+                drawW = canvas.height * videoAspect;
+                drawX = (canvas.width - drawW) / 2;
+                drawY = 0;
+            }
+            offscreenCtx.drawImage(webcam, drawX, drawY, drawW, drawH);
+            offscreenCtx.restore();
+
+            // Step 2: Apply segmentation mask using 'destination-in'
+            // This keeps only pixels where the mask is white (person)
+            offscreenCtx.save();
+            offscreenCtx.globalCompositeOperation = 'destination-in';
+
+            // The segmentation mask needs to be drawn mirrored too (to match mirrored video)
+            offscreenCtx.translate(canvas.width, 0);
+            offscreenCtx.scale(-1, 1);
+            offscreenCtx.drawImage(segmentationMask, drawX, drawY, drawW, drawH);
+            offscreenCtx.restore();
+
+            // Step 3: Apply hand region mask using 'destination-in'
+            // Only show person pixels within hand bounding regions
+            // Create a temporary canvas for the hand mask
+            const handMaskCanvas = document.createElement('canvas');
+            handMaskCanvas.width = canvas.width;
+            handMaskCanvas.height = canvas.height;
+            const handMaskCtx = handMaskCanvas.getContext('2d');
+
+            for (let landmarks of allHandLandmarks) {
+                // Get bounding box of hand landmarks
+                let minX = Infinity, minY = Infinity;
+                let maxX = -Infinity, maxY = -Infinity;
+                for (let lm of landmarks) {
+                    if (lm.x < minX) minX = lm.x;
+                    if (lm.y < minY) minY = lm.y;
+                    if (lm.x > maxX) maxX = lm.x;
+                    if (lm.y > maxY) maxY = lm.y;
+                }
+
+                // Expand the bounding box
+                minX -= expand;
+                minY -= expand;
+                maxX += expand;
+                maxY += expand;
+
+                // Draw a rounded rect with feathered edges using radial gradients
+                // For smooth edges, draw the hand convex hull + padding with blur
+                if (feather > 0) {
+                    handMaskCtx.save();
+                    handMaskCtx.filter = `blur(${feather}px)`;
+                }
+
+                // Draw convex hull of landmarks for more natural shape
+                const hullPts = convexHull(landmarks.map(l => [l.x, l.y]));
+                handMaskCtx.beginPath();
+
+                // Expand hull outward from centroid
+                let cx = 0, cy = 0;
+                for (let pt of hullPts) { cx += pt[0]; cy += pt[1]; }
+                cx /= hullPts.length;
+                cy /= hullPts.length;
+
+                for (let k = 0; k < hullPts.length; k++) {
+                    let dx = hullPts[k][0] - cx;
+                    let dy = hullPts[k][1] - cy;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    let expandedX = cx + dx * (1 + expand / Math.max(dist, 1));
+                    let expandedY = cy + dy * (1 + expand / Math.max(dist, 1));
+
+                    if (k === 0) handMaskCtx.moveTo(expandedX, expandedY);
+                    else handMaskCtx.lineTo(expandedX, expandedY);
+                }
+                handMaskCtx.closePath();
+                handMaskCtx.fillStyle = 'white';
+                handMaskCtx.fill();
+
+                if (feather > 0) {
+                    handMaskCtx.restore();
+                }
+            }
+
+            // Apply the hand mask
+            offscreenCtx.save();
+            offscreenCtx.globalCompositeOperation = 'destination-in';
+            offscreenCtx.drawImage(handMaskCanvas, 0, 0);
+            offscreenCtx.restore();
+
+            // Step 4: Draw the composited result onto main canvas
+            ctx.drawImage(offscreenCanvas, 0, 0);
+        }
+
+        // ============================================
+        // CONVEX HULL (Andrew's monotone chain)
+        // ============================================
+        function convexHull(pts) {
+            pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+            if (pts.length <= 1) return pts;
+
+            const cross = (O, A, B) =>
+                (A[0] - O[0]) * (B[1] - O[1]) - (A[1] - O[1]) * (B[0] - O[0]);
+
+            const lower = [];
+            for (let p of pts) {
+                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
+                    lower.pop();
+                lower.push(p);
+            }
+
+            const upper = [];
+            for (let i = pts.length - 1; i >= 0; i--) {
+                const p = pts[i];
+                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
+                    upper.pop();
+                upper.push(p);
+            }
+
+            upper.pop();
+            lower.pop();
+            return lower.concat(upper);
+        }
+
+        // ============================================
+        // RENDER
+        // ============================================
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Reset attachment
+            for (let i = 0; i <= cols; i++) {
+                for (let j = 0; j <= rows; j++) {
+                    points[i][j].reset();
+                }
+            }
+
+            // Attach points to fingers
+            for (let finger of allFingers) {
+                for (let i = 0; i <= cols; i++) {
+                    for (let j = 0; j <= rows; j++) {
+                        let p = points[i][j];
+                        let dist = Math.sqrt((p.x - finger.x) ** 2 + (p.y - finger.y) ** 2);
+                        if (dist < CONFIG.captureRadius) {
+                            p.attachedToFinger = true;
+                            p.attachedFingerX = finger.x;
+                            p.attachedFingerY = finger.y;
+                            p.attachedFingerZ = finger.z * 500;
+                        }
+                    }
+                }
+            }
+
+            // Update physics
+            for (let i = 0; i <= cols; i++) {
+                for (let j = 0; j <= rows; j++) {
+                    points[i][j].update();
+                }
+            }
+
+            // Compute SVG-to-canvas transform
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
+
+            // SVG Layer order: Lines -> Border -> Text -> Letters -> Hand overlay
+
+            // 1. Colored lines (Layer_3)
+            drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale);
+
+            // 2. Border frame
+            drawDistortedBorder(offsetX, offsetY, svgW, svgH);
+
+            // 3. JORNADAS DO DESIGN text
+            drawDistortedSubtitle(offsetX, offsetY, scale);
+
+            // 4. TRAMA letters
+            drawDistortedLetters(offsetX, offsetY, scale);
+
+            // 5. Hand overlay: real hands OR wireframe
+            if (realHandsEnabled && segmentationReady) {
+                drawRealHands();
+            } else {
+                drawHandsWireframe();
+            }
+
+            // Send frame to segmentation if enabled
+            if (realHandsEnabled && segmentationReady && selfieSegmentation && webcam.readyState >= 2) {
+                selfieSegmentation.send({ image: webcam });
+            }
+        }
+
+        // ============================================
+        // DRAW FUNCTIONS
+        // ============================================
+        function drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale) {
+            const SUBDIVISIONS = 30;
+
+            for (let polyline of svgPolylines) {
+                let coords = polyline.points.trim().split(/\s+/);
+                let rawPts = [];
+
+                for (let i = 0; i < coords.length; i += 2) {
+                    rawPts.push({
+                        x: parseFloat(coords[i]),
+                        y: parseFloat(coords[i + 1])
+                    });
+                }
+
+                let pts = [];
+                for (let seg = 0; seg < rawPts.length - 1; seg++) {
+                    let isLast = (seg === rawPts.length - 2);
+                    let steps = SUBDIVISIONS;
+                    for (let s = 0; s <= (isLast ? steps : steps - 1); s++) {
+                        let t = s / steps;
+                        let svgX = rawPts[seg].x + (rawPts[seg+1].x - rawPts[seg].x) * t;
+                        let svgY = rawPts[seg].y + (rawPts[seg+1].y - rawPts[seg].y) * t;
+
+                        let canvasX = (svgX / SVG_AREA.width) * svgW + offsetX;
+                        let canvasY = (svgY / SVG_AREA.height) * svgH + offsetY;
+
+                        pts.push(getDistortedPoint(canvasX, canvasY));
+                    }
+                }
+
+                if (pts.length < 2) continue;
+
+                const rgb = hexToRgb(polyline.color);
+
+                for (let i = 1; i < pts.length; i++) {
+                    let avgZ = (pts[i-1].z + pts[i].z) / 2;
+                    let normalizedZ = (avgZ + 150) / 300;
+                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+
+                    let lineWidth = 4 * (0.5 + normalizedZ);
+                    let opacity = Math.min(1.0, 0.5 + normalizedZ);
+
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i-1].x, pts[i-1].y);
+                    ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+                    ctx.lineWidth = lineWidth;
+
+                    if (normalizedZ > 0.7) {
+                        ctx.shadowColor = polyline.color;
+                        ctx.shadowBlur = (normalizedZ - 0.7) * 20;
+                    } else {
+                        ctx.shadowBlur = 0;
+                    }
+
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawDistortedBorder(offsetX, offsetY, svgW, svgH) {
+            const corners = [
+                {svgX: 0, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: SVG_AREA.height},
+                {svgX: 0, svgY: SVG_AREA.height}
+            ];
+
+            const subdivisions = 20;
+            const borderPts = [];
+
+            for (let edge = 0; edge < 4; edge++) {
+                const c1 = corners[edge];
+                const c2 = corners[(edge + 1) % 4];
+
+                for (let s = 0; s < subdivisions; s++) {
+                    const t = s / subdivisions;
+                    const svgX = c1.svgX + (c2.svgX - c1.svgX) * t;
+                    const svgY = c1.svgY + (c2.svgY - c1.svgY) * t;
+
+                    const x = (svgX / SVG_AREA.width) * svgW + offsetX;
+                    const y = (svgY / SVG_AREA.height) * svgH + offsetY;
+
+                    borderPts.push(getDistortedPoint(x, y));
+                }
+            }
+
+            if (borderPts.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(borderPts[0].x, borderPts[0].y);
+                for (let i = 1; i < borderPts.length; i++) {
+                    ctx.lineTo(borderPts[i].x, borderPts[i].y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = '#f0ece6';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+        }
+
+        function drawDistortedSubtitle(offsetX, offsetY, scale) {
+            drawPath2DDistorted(jornadasPath, JORNADAS_CENTER.x, JORNADAS_CENTER.y, offsetX, offsetY, scale, false);
+            drawPath2DDistorted(doDesignPath, DODESIGN_CENTER.x, DODESIGN_CENTER.y, offsetX, offsetY, scale, false);
+        }
+
+        function drawDistortedLetters(offsetX, offsetY, scale) {
+            for (let letter of tramaPath2Ds) {
+                drawPath2DDistorted(letter.path, letter.cx, letter.cy, offsetX, offsetY, scale, true);
+            }
+        }
+
+        function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, scale, hasStroke) {
+            let canvasX = offsetX + svgCX * scale;
+            let canvasY = offsetY + svgCY * scale;
+
+            let distorted = getDistortedPoint(canvasX, canvasY);
+
+            let dx = distorted.x - canvasX;
+            let dy = distorted.y - canvasY;
+
+            let normalizedZ = (distorted.z + 150) / 300;
+            normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+            let opacity = Math.min(1.0, 0.5 + normalizedZ);
+
+            ctx.save();
+            ctx.translate(offsetX + dx, offsetY + dy);
+            ctx.scale(scale, scale);
+
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.fill(path);
+
+            if (hasStroke) {
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.lineWidth = 0.68;
+                ctx.stroke(path);
+            }
+
+            ctx.restore();
+        }
+
+        function drawHandsWireframe() {
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4],
+                [0, 5], [5, 6], [6, 7], [7, 8],
+                [0, 9], [9, 10], [10, 11], [11, 12],
+                [0, 13], [13, 14], [14, 15], [15, 16],
+                [0, 17], [17, 18], [18, 19], [19, 20],
+                [5, 9], [9, 13], [13, 17]
+            ];
+
+            const opacity = CONFIG.trackingOpacity;
+
+            for (let handIdx = 0; handIdx < allHandLandmarks.length; handIdx++) {
+                let landmarks = allHandLandmarks[handIdx];
+
+                ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                for (let [a, b] of connections) {
+                    ctx.moveTo(landmarks[a].x, landmarks[a].y);
+                    ctx.lineTo(landmarks[b].x, landmarks[b].y);
+                }
+                ctx.stroke();
+
+                for (let idx of [4, 8, 12, 16, 20]) {
+                    let z = landmarks[idx].z;
+                    let size = 12 + z * 40;
+                    let alpha = (0.7 + z * 0.3) * opacity;
+
+                    ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0.3, Math.min(1, alpha))})`;
+                    ctx.beginPath();
+                    ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(6, size), 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.2, Math.min(0.8, alpha * 0.5))})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(10, size + 5), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = `rgba(68, 136, 255, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(landmarks[0].x, landmarks[0].y, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = `rgba(255, 200, 50, ${opacity * 0.5})`;
+            ctx.lineWidth = 2;
+            for (let finger of allFingers) {
+                ctx.beginPath();
+                ctx.arc(finger.x, finger.y, CONFIG.captureRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // ============================================
+        // HAND TRACKING
+        // ============================================
+        async function startCamera() {
+            const btn = document.getElementById('enableCamera');
+            btn.disabled = true;
+            btn.textContent = 'A iniciar...';
+            document.getElementById('status').textContent = 'A iniciar camera...';
+
+            try {
+                hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+
+                hands.setOptions({
+                    maxNumHands: 2,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.5
+                });
+
+                hands.onResults(onHandResults);
+
+                camera = new Camera(webcam, {
+                    onFrame: async () => {
+                        if (isRunning) {
+                            await hands.send({ image: webcam });
+                        }
+                    },
+                    width: 1280,
+                    height: 720
+                });
+
+                await camera.start();
+                isRunning = true;
+
+                document.getElementById('status').textContent = 'Camera ativa - Move as maos!';
+                btn.textContent = '\u2713 Ativa';
+                btn.style.background = '#06FFA5';
+                btn.disabled = false;
+                btn.onclick = stopCamera;
+
+                animate();
+
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('status').textContent = 'Erro: ' + error.message;
+                btn.textContent = 'Tentar Novamente';
+                btn.disabled = false;
+            }
+        }
+
+        function stopCamera() {
+            isRunning = false;
+            if (camera) camera.stop();
+            document.getElementById('status').textContent = 'Camera desligada';
+
+            const btn = document.getElementById('enableCamera');
+            btn.textContent = 'Ativar Camera';
+            btn.style.background = '#E63946';
+            btn.onclick = startCamera;
+        }
+
+        function onHandResults(results) {
+            allFingers = [];
+            allHandLandmarks = [];
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (let handIdx = 0; handIdx < results.multiHandLandmarks.length; handIdx++) {
+                    const lm = results.multiHandLandmarks[handIdx];
+
+                    const landmarks = lm.map(p => ({
+                        x: (1 - p.x) * canvas.width,
+                        y: p.y * canvas.height,
+                        z: (p.z || 0) * -1
+                    }));
+
+                    allHandLandmarks.push(landmarks);
+
+                    const tipIndices = [4, 8, 12, 16, 20];
+                    for (let tipIdx of tipIndices) {
+                        allFingers.push({
+                            x: landmarks[tipIdx].x,
+                            y: landmarks[tipIdx].y,
+                            z: landmarks[tipIdx].z,
+                            handIndex: handIdx,
+                            fingerIndex: tipIdx
+                        });
+                    }
+                }
+            }
+        }
+
+        // ============================================
+        // ANIMATION LOOP
+        // ============================================
+        function animate() {
+            if (!isRunning) return;
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        // ============================================
+        // UI CONTROLS
+        // ============================================
+        function updateSliders() {
+            CONFIG.elasticity = parseFloat(document.getElementById('elasticity').value);
+            CONFIG.gridDensity = parseInt(document.getElementById('gridDensity').value);
+            CONFIG.captureRadius = parseInt(document.getElementById('captureRadius').value);
+            CONFIG.videoOpacity = parseInt(document.getElementById('videoOpacity').value) / 100;
+            CONFIG.trackingOpacity = parseInt(document.getElementById('trackingOpacity').value) / 100;
+            CONFIG.handExpand = parseInt(document.getElementById('handExpand').value);
+            CONFIG.edgeFeather = parseInt(document.getElementById('edgeFeather').value);
+
+            document.getElementById('elasticity-value').textContent = CONFIG.elasticity.toFixed(2);
+            document.getElementById('density-value').textContent = CONFIG.gridDensity;
+            document.getElementById('capture-value').textContent = CONFIG.captureRadius;
+            document.getElementById('opacity-value').textContent = document.getElementById('videoOpacity').value + '%';
+            document.getElementById('tracking-opacity-value').textContent = document.getElementById('trackingOpacity').value + '%';
+            document.getElementById('hand-expand-value').textContent = CONFIG.handExpand + 'px';
+            document.getElementById('edge-feather-value').textContent = CONFIG.edgeFeather + 'px';
+
+            webcam.style.opacity = CONFIG.videoOpacity;
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        function init() {
+            canvas = document.getElementById('mainCanvas');
+            ctx = canvas.getContext('2d');
+            webcam = document.getElementById('webcam');
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            createGrid();
+
+            // Menu hamburger toggle
+            const menuToggle = document.getElementById('menuToggle');
+            const controlsPanel = document.getElementById('controls');
+
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuToggle.classList.toggle('open');
+                controlsPanel.classList.toggle('visible');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!controlsPanel.contains(e.target) && !menuToggle.contains(e.target)) {
+                    menuToggle.classList.remove('open');
+                    controlsPanel.classList.remove('visible');
+                }
+            });
+
+            // Real Hands toggle
+            document.getElementById('realHandsToggle').addEventListener('change', async (e) => {
+                realHandsEnabled = e.target.checked;
+                if (realHandsEnabled && !segmentationReady) {
+                    await initSelfieSegmentation();
+                }
+            });
+
+            // Sliders
+            document.getElementById('elasticity').addEventListener('input', () => {
+                updateSliders();
+                createGrid();
+            });
+
+            document.getElementById('gridDensity').addEventListener('input', () => {
+                updateSliders();
+                createGrid();
+            });
+
+            document.getElementById('captureRadius').addEventListener('input', updateSliders);
+            document.getElementById('videoOpacity').addEventListener('input', updateSliders);
+            document.getElementById('trackingOpacity').addEventListener('input', updateSliders);
+            document.getElementById('handExpand').addEventListener('input', updateSliders);
+            document.getElementById('edgeFeather').addEventListener('input', updateSliders);
+
+            // Camera button
+            document.getElementById('enableCamera').addEventListener('click', startCamera);
+
+            // Resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                createGrid();
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
