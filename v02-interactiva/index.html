@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRAMA - Jornadas do Design</title>
+    <title>TRAMA - Jornadas do Design V02</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: #1a1a1a;
+            background: #000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
-        /* Hamburger button */
         #menuToggle {
             position: absolute;
             top: 10px;
@@ -34,9 +33,7 @@
             transition: background 0.2s;
             -webkit-tap-highlight-color: transparent;
         }
-        #menuToggle:hover {
-            background: rgba(0, 0, 0, 0.85);
-        }
+        #menuToggle:hover { background: rgba(0, 0, 0, 0.85); }
         #menuToggle span {
             display: block;
             width: 16px;
@@ -45,15 +42,9 @@
             border-radius: 1px;
             transition: transform 0.3s, opacity 0.3s;
         }
-        #menuToggle.open span:nth-child(1) {
-            transform: translateY(6px) rotate(45deg);
-        }
-        #menuToggle.open span:nth-child(2) {
-            opacity: 0;
-        }
-        #menuToggle.open span:nth-child(3) {
-            transform: translateY(-6px) rotate(-45deg);
-        }
+        #menuToggle.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        #menuToggle.open span:nth-child(2) { opacity: 0; }
+        #menuToggle.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
         #controls {
             position: absolute;
@@ -80,18 +71,10 @@
             opacity: 1;
             pointer-events: auto;
         }
+        #controls::-webkit-scrollbar { width: 4px; }
+        #controls::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
 
-        #controls::-webkit-scrollbar {
-            width: 4px;
-        }
-        #controls::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-        }
-
-        .control-group {
-            margin-bottom: 8px;
-        }
+        .control-group { margin-bottom: 8px; }
 
         label {
             display: block;
@@ -199,42 +182,9 @@
         </div>
 
         <div class="control-group">
-            <label>Volume Som</label>
-            <input type="range" id="soundVolume" min="0" max="100" step="5" value="70">
-            <div class="value-display" id="volume-value">70%</div>
-        </div>
-
-        <div class="control-group">
-            <label>Instrumento</label>
-            <select id="instrumentSelect" style="width: 100%; padding: 5px; border-radius: 4px; background: #333; color: white; border: none; font-size: 12px;">
-                <option value="piano">Piano</option>
-                <option value="cello">Violoncelo</option>
-                <option value="trumpet">Trompete</option>
-                <option value="bass">Contrabaixo</option>
-                <option value="drums">Bateria</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="faceTracking" checked style="width: auto; margin: 0;">
-                <span>Face Mesh</span>
-            </label>
-        </div>
-
-        <div class="control-group">
             <label>Opacidade Tracking</label>
             <input type="range" id="trackingOpacity" min="0" max="100" step="5" value="60">
             <div class="value-display" id="tracking-opacity-value">60%</div>
-        </div>
-
-        <div class="control-group">
-            <label>Oitava</label>
-            <div style="display: flex; gap: 4px;">
-                <button id="octaveDown" style="flex: 1; padding: 3px; font-size: 14px;">-</button>
-                <div class="value-display" id="octave-value" style="flex: 1; text-align: center; line-height: 24px;">0</div>
-                <button id="octaveUp" style="flex: 1; padding: 3px; font-size: 14px;">+</button>
-            </div>
         </div>
 
         <div class="control-group">
@@ -242,7 +192,7 @@
         </div>
     </div>
 
-    <div id="status">Clica "Ativar Câmera" - Move mãos para frente/trás para ver profundidade 3D</div>
+    <div id="status">Clica "Ativar Câmera" - Move as mãos para interagir</div>
 
     <div class="canvas-container">
         <video id="webcam" autoplay playsinline></video>
@@ -251,335 +201,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 
     <script>
-        // ============================================
-        // AUDIO CONTEXT & SYNTH
-        // ============================================
-        let audioContext;
-        let masterGain;
-        let currentInstrument = 'piano';
-        let currentOctave = 0;
-        let showFaceTracking = true;
-
-        function initAudio() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
-            masterGain.gain.value = 0.4;
-        }
-
-        // HARPA - Som cristalino com harmónicos
-        function playHarp(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const duration = 2.0 + depth * 3;
-            const now = audioContext.currentTime;
-
-            const harmonics = [1, 2, 3, 4];
-            const gains = [1, 0.5, 0.3, 0.15];
-
-            for (let i = 0; i < harmonics.length; i++) {
-                const osc = audioContext.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.value = frequency * harmonics[i];
-
-                const envelope = audioContext.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(velocity * 0.4 * gains[i], now + 0.005);
-                envelope.gain.exponentialRampToValueAtTime(velocity * 0.2 * gains[i], now + 0.1);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-                const filter = audioContext.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 3000 + depth * 4000;
-                filter.Q.value = 2;
-
-                osc.connect(filter);
-                filter.connect(envelope);
-                envelope.connect(masterGain);
-
-                osc.start(now);
-                osc.stop(now + duration + 0.1);
-            }
-        }
-
-        // PIANO - FM Synthesis
-        function playPiano(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const duration = 1.5 + depth * 2;
-            const now = audioContext.currentTime;
-
-            const modulator = audioContext.createOscillator();
-            modulator.type = 'sine';
-            modulator.frequency.value = frequency * 2;
-
-            const modGain = audioContext.createGain();
-            modGain.gain.setValueAtTime(frequency * (0.5 + depth), now);
-            modGain.gain.exponentialRampToValueAtTime(frequency * 0.01, now + duration);
-
-            const carrier = audioContext.createOscillator();
-            carrier.type = 'sine';
-            carrier.frequency.value = frequency;
-
-            const envelope = audioContext.createGain();
-            envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(velocity * 0.5, now + 0.01);
-            envelope.gain.exponentialRampToValueAtTime(velocity * 0.3, now + 0.1);
-            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-            modulator.connect(modGain);
-            modGain.connect(carrier.frequency);
-            carrier.connect(envelope);
-            envelope.connect(masterGain);
-
-            modulator.start(now);
-            carrier.start(now);
-            modulator.stop(now + duration + 0.1);
-            carrier.stop(now + duration + 0.1);
-        }
-
-        // CELLO - 3 osciladores + vibrato
-        function playCello(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const duration = 3.0 + depth * 4;
-            const now = audioContext.currentTime;
-
-            const vibrato = audioContext.createOscillator();
-            vibrato.type = 'sine';
-            vibrato.frequency.value = 5 + depth * 3;
-
-            const vibratoGain = audioContext.createGain();
-            vibratoGain.gain.value = frequency * 0.008;
-
-            vibrato.connect(vibratoGain);
-
-            const oscillators = [
-                { type: 'sawtooth', detune: 0, gain: 0.4 },
-                { type: 'sawtooth', detune: 7, gain: 0.3 },
-                { type: 'triangle', detune: -5, gain: 0.2 }
-            ];
-
-            for (let oscConfig of oscillators) {
-                const osc = audioContext.createOscillator();
-                osc.type = oscConfig.type;
-                osc.frequency.value = frequency;
-                osc.detune.value = oscConfig.detune;
-
-                vibratoGain.connect(osc.frequency);
-
-                const envelope = audioContext.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(velocity * oscConfig.gain, now + 0.15);
-                envelope.gain.setValueAtTime(velocity * oscConfig.gain * 0.8, now + 0.3);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-                const filter = audioContext.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 2000 + depth * 3000;
-                filter.Q.value = 1;
-
-                osc.connect(filter);
-                filter.connect(envelope);
-                envelope.connect(masterGain);
-
-                osc.start(now);
-                osc.stop(now + duration + 0.1);
-            }
-
-            vibrato.start(now);
-            vibrato.stop(now + duration + 0.1);
-        }
-
-        // TRUMPET - Square wave + harmónicos ímpares
-        function playTrumpet(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const duration = 1.0 + depth * 2;
-            const now = audioContext.currentTime;
-
-            const osc1 = audioContext.createOscillator();
-            osc1.type = 'square';
-            osc1.frequency.value = frequency;
-
-            const osc2 = audioContext.createOscillator();
-            osc2.type = 'sawtooth';
-            osc2.frequency.value = frequency * 3;
-
-            const envelope = audioContext.createGain();
-            envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(velocity * 0.3, now + 0.05);
-            envelope.gain.setValueAtTime(velocity * 0.25, now + 0.1);
-            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-            const filter = audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 1500 + depth * 5000;
-            filter.Q.value = 5;
-
-            const mix = audioContext.createGain();
-            mix.gain.value = 1;
-
-            osc1.connect(mix);
-            const osc2Gain = audioContext.createGain();
-            osc2Gain.gain.value = 0.15;
-            osc2.connect(osc2Gain);
-            osc2Gain.connect(mix);
-
-            mix.connect(filter);
-            filter.connect(envelope);
-            envelope.connect(masterGain);
-
-            osc1.start(now);
-            osc2.start(now);
-            osc1.stop(now + duration + 0.1);
-            osc2.stop(now + duration + 0.1);
-        }
-
-        // BASS - Sawtooth + sub-harmónico
-        function playBass(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const bassFreq = frequency / 2;
-            const duration = 1.5 + depth * 2;
-            const now = audioContext.currentTime;
-
-            const osc1 = audioContext.createOscillator();
-            osc1.type = 'sawtooth';
-            osc1.frequency.value = bassFreq;
-
-            const osc2 = audioContext.createOscillator();
-            osc2.type = 'sine';
-            osc2.frequency.value = bassFreq / 2;
-
-            const envelope = audioContext.createGain();
-            envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(velocity * 0.5, now + 0.02);
-            envelope.gain.exponentialRampToValueAtTime(velocity * 0.3, now + 0.1);
-            envelope.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-            const filter = audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(800 + depth * 2000, now);
-            filter.frequency.exponentialRampToValueAtTime(200, now + duration);
-            filter.Q.value = 3;
-
-            const mix = audioContext.createGain();
-            osc1.connect(mix);
-            const subGain = audioContext.createGain();
-            subGain.gain.value = 0.6;
-            osc2.connect(subGain);
-            subGain.connect(mix);
-
-            mix.connect(filter);
-            filter.connect(envelope);
-            envelope.connect(masterGain);
-
-            osc1.start(now);
-            osc2.start(now);
-            osc1.stop(now + duration + 0.1);
-            osc2.stop(now + duration + 0.1);
-        }
-
-        // DRUMS - Percussão
-        function playDrums(frequency, velocity, depth) {
-            if (!audioContext) return;
-
-            const now = audioContext.currentTime;
-            const drumType = Math.floor(Math.random() * 10);
-
-            if (drumType < 3) {
-                // Kick
-                const osc = audioContext.createOscillator();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
-
-                const env = audioContext.createGain();
-                env.gain.setValueAtTime(velocity * 0.8, now);
-                env.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-                osc.connect(env);
-                env.connect(masterGain);
-                osc.start(now);
-                osc.stop(now + 0.5);
-            } else if (drumType < 6) {
-                // Snare (noise + tone)
-                const bufferSize = audioContext.sampleRate * 0.2;
-                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
-                }
-
-                const noise = audioContext.createBufferSource();
-                noise.buffer = buffer;
-
-                const noiseEnv = audioContext.createGain();
-                noiseEnv.gain.setValueAtTime(velocity * 0.5, now);
-                noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-                const filter = audioContext.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 1000;
-
-                noise.connect(filter);
-                filter.connect(noiseEnv);
-                noiseEnv.connect(masterGain);
-                noise.start(now);
-            } else {
-                // Hi-hat
-                const bufferSize = audioContext.sampleRate * 0.1;
-                const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
-                }
-
-                const noise = audioContext.createBufferSource();
-                noise.buffer = buffer;
-
-                const env = audioContext.createGain();
-                env.gain.setValueAtTime(velocity * 0.3, now);
-                env.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-                const filter = audioContext.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 5000;
-
-                noise.connect(filter);
-                filter.connect(env);
-                env.connect(masterGain);
-                noise.start(now);
-            }
-        }
-
-        function playSound(frequency, velocity, depth) {
-            const octaveMultiplier = Math.pow(2, currentOctave);
-            const adjustedFrequency = frequency * octaveMultiplier;
-
-            switch (currentInstrument) {
-                case 'piano': playPiano(adjustedFrequency, velocity, depth); break;
-                case 'cello': playCello(adjustedFrequency, velocity, depth); break;
-                case 'trumpet': playTrumpet(adjustedFrequency, velocity, depth); break;
-                case 'bass': playBass(adjustedFrequency, velocity, depth); break;
-                case 'drums': playDrums(adjustedFrequency, velocity, depth); break;
-                default: playPiano(adjustedFrequency, velocity, depth);
-            }
-        }
-
         // ============================================
         // STATE
         // ============================================
         let canvas, ctx, webcam;
-        let hands, faceMesh, camera;
+        let hands, camera;
         let isRunning = false;
         let allFingers = [];
         let allHandLandmarks = [];
-        let faceLandmarks = null;
 
         const CONFIG = {
             elasticity: 0.08,
@@ -587,68 +218,102 @@
             gridDensity: 25,
             captureRadius: 60,
             videoOpacity: 0.5,
-            soundVolume: 0.7,
             trackingOpacity: 0.6
         };
 
-        // Grid
         let points = [];
         let cols, rows;
 
+        const SVG_AREA = { x: 0, y: 0, width: 1920, height: 1080 };
+
         // ============================================
-        // SVG POLYLINES - Base gráfica v02
-        // Extraídas de trama_base_interativa_v01.svg
-        // ViewBox: 0 0 1920 1080
+        // SVG POLYLINES - Layer_3 colored lines
         // ============================================
         const svgPolylines = [
-            // Cyan (#00e5ff) - st1
             {points: "884.14 -3.55 1771.9 1080", color: "#00e5ff"},
             {points: "1201.6 0 1266.76 1080.6", color: "#00e5ff"},
             {points: "973.78 0 621.74 1078.41 0 761.84", color: "#00e5ff"},
             {points: "704.24 0 1051.66 1080.26", color: "#00e5ff"},
-            // Pink (#ff00aa) - st3
             {points: "0 468.19 1007.98 382.66 1919.89 427.48", color: "#ff00aa"},
             {points: "0 673.48 923.3 673.48", color: "#ff00aa"},
-            // Purple (#7b61ff) - st0
             {points: "0 311.59 554.68 420.1", color: "#7b61ff"},
             {points: "0 537.13 1919.63 886.93", color: "#7b61ff"},
             {points: "659.16 614.05 805.56 1080", color: "#7b61ff"},
-            // Orange (#ff8800) - st7
             {points: "0 203.48 974.09 1078.41 1027.57 0", color: "#ff8800"},
-            // Red (#ff3c00) - st2
             {points: "630.67 0 437.71 1080.78", color: "#ff3c00"},
             {points: "1920 411.89 245.89 1080.26", color: "#ff3c00"},
             {points: "1230.71 0 1097.28 385.85", color: "#ff3c00"},
-            // Yellow-green (#c8ff00) - st5
             {points: "368.1 533.59 413.7 1081.16", color: "#c8ff00"},
             {points: "1919.9 630.13 997.66 583.87", color: "#c8ff00"},
             {points: "461.16 427.94 422.19 0", color: "#c8ff00"},
             {points: "376.56 639.24 997.66 583.87", color: "#c8ff00"}
         ];
 
-        // Border rectangle
-        const svgBorder = {color: "#f0ece6", width: 1920, height: 1080.26};
-
-        const SVG_AREA = {
-            x: 0,
-            y: 0,
-            width: 1920,
-            height: 1080
-        };
-
-        // Escalas musicais
-        const SCALE_NOTES = [
-            220.00, // A3
-            246.94, // B3
-            261.63, // C4
-            293.66, // D4
-            329.63, // E4
-            349.23, // F4
-            392.00, // G4
-            440.00, // A4
-            493.88, // B4
-            523.25  // C5
+        // ============================================
+        // TRAMA LETTER PATHS - Layers 7,6,5,4,2
+        // Each letter is an SVG path with white fill + stroke
+        // cx,cy = approximate center for distortion
+        // ============================================
+        const TRAMA_LETTERS = [
+            {
+                d: 'M401.35,465.11l14.46,170.8-39.26,3.32-14.46-170.8-61.67,5.22-2.7-31.88,163.43-13.83,2.7,31.88-62.5,5.29Z',
+                cx: 381, cy: 534
+            },
+            {
+                d: 'M571.95,559.82l-14.04,79.02-40.82-7.25,37.59-211.49,70.88,12.6c11.72,2.08,22.07,5.35,31.07,9.79,9,4.45,16.41,9.94,22.25,16.47,5.74,6.51,9.71,14.06,11.93,22.65,2.22,8.59,2.4,18.11.54,28.57-1.34,7.55-3.45,14.2-6.31,19.93-2.87,5.73-6.37,10.68-10.5,14.84-4.25,4.24-9.04,7.73-14.37,10.48-5.33,2.75-11.14,4.91-17.41,6.5l29.95,95.38-.34,1.89-43.72-7.77-25.76-86.09-30.94-5.5ZM608.05,532.08c6.29,1.12,12,1.21,17.11.27,5.11-.94,9.47-2.84,13.07-5.69,3-2.26,5.49-5.17,7.47-8.71,1.98-3.54,3.38-7.64,4.21-12.29,1-5.62,1.03-10.73.1-15.34-.93-4.61-2.84-8.62-5.73-12.03-2.56-3.05-5.89-5.64-10.01-7.77-4.12-2.13-8.98-3.69-14.6-4.69l-30.07-5.34-11.77,66.24,30.21,5.37Z',
+                cx: 594, cy: 545
+            },
+            {
+                d: 'M806.62,631.25l-12.17,43.02h-41.89l67.5-206.03h36.08l66.22,206.03h-41.89l-12.03-43.02h-61.84ZM859.11,597.43l-21.08-75.85-21.65,75.85h42.73Z',
+                cx: 837, cy: 571
+            },
+            {
+                d: 'M1071.79,460.75l25.49-74.9,48.47,2.36-9.83,202.19-35.83-1.74,2.91-59.85,6.26-94.49-30.79,86.48-19.3-.94-19.66-85.17-2.75,90.9-2.91,59.85-35.83-1.74,9.83-202.19,48.47,2.36,15.47,76.89Z',
+                cx: 1072, cy: 486
+            },
+            {
+                d: 'M1275.67,623.35l4.41,43.86-38.42,15.16-12.65-213.42,33.1-13.06,135.31,165.02-38.42,15.16-26.6-35.11-56.72,22.38ZM1311.59,573.32l-46.79-61.94,7.59,77.41,39.2-15.47Z',
+                cx: 1313, cy: 569
+            }
         ];
+
+        // Pre-create Path2D objects
+        const tramaPath2Ds = TRAMA_LETTERS.map(l => ({
+            path: new Path2D(l.d),
+            cx: l.cx,
+            cy: l.cy
+        }));
+
+        // ============================================
+        // SUBTITLE PATHS - Layer_8
+        // JORNADAS (8 glyph paths) + DO DESIGN (8 glyph paths)
+        // ============================================
+        const jornadasPath = new Path2D();
+        [
+            'M1024.27,636.86v15.08c-.02,1-.21,1.92-.57,2.77-.36.84-.86,1.57-1.48,2.17-.62.62-1.36,1.09-2.21,1.44-.85.34-1.77.51-2.78.51s-1.93-.15-2.76-.46c-.83-.31-1.54-.75-2.15-1.32-.62-.57-1.11-1.25-1.47-2.06-.37-.81-.59-1.71-.68-2.72h2.8c.03.61.15,1.17.37,1.68.21.52.5.96.87,1.34.37.39.81.68,1.32.89.51.21,1.08.31,1.72.31s1.24-.12,1.76-.36.96-.57,1.32-.99c.36-.42.63-.9.83-1.45s.3-1.13.32-1.75v-15.08h2.81Z',
+            'M1043.47,651.28c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67-.56.48-1.19.85-1.91,1.12-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34.12-.79.32-1.55.59-2.28.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.56.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.56-.2,2.34ZM1040.85,644.82c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.94-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.27.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z',
+            'M1050.71,649.68v8.84h-2.74v-21.67h6.35c1.01.02,1.96.16,2.86.43.89.27,1.68.67,2.35,1.21.67.54,1.19,1.21,1.57,2.02s.57,1.76.57,2.85c0,.71-.1,1.35-.3,1.93-.2.59-.48,1.12-.84,1.59s-.78.9-1.28,1.26c-.5.37-1.04.68-1.64.94l4.6,9.26v.18h-2.92l-4.26-8.84h-4.33ZM1054.41,647.42c.61,0,1.2-.11,1.74-.29.54-.18,1.03-.45,1.44-.8.41-.35.73-.77.97-1.27s.36-1.08.36-1.73c0-.69-.11-1.3-.34-1.82-.23-.52-.55-.96-.95-1.32-.41-.35-.89-.61-1.45-.79s-1.17-.27-1.84-.28h-3.62v8.3h3.69Z',
+            'M1076.94,658.52l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z',
+            'M1087.56,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1094.07,650.52l-2.86-9.41-2.9,9.41h5.76Z',
+            'M1102.46,636.86h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.29.37.73.65,1.54.84,2.41s.29,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1105.26,656.28h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c0-.67-.07-1.32-.17-1.94s-.26-1.2-.47-1.73c-.27-.69-.63-1.32-1.08-1.88s-1-1.01-1.66-1.36c-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1124.14,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1130.65,650.52l-2.86-9.41-2.9,9.41h5.76Z',
+            'M1150.21,651.37c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77s-1.12-.4-1.64-.57c-.76-.25-1.54-.55-2.33-.9s-1.51-.78-2.15-1.27c-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7-.23-.51-.53-.95-.91-1.32-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.94,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z'
+        ].forEach(d => jornadasPath.addPath(new Path2D(d)));
+
+        const doDesignPath = new Path2D();
+        [
+            'M1010.71,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1013.51,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1043.17,686.26c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67s-1.19.85-1.91,1.12c-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34s.32-1.55.59-2.28c.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.55.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.55-.2,2.34ZM1040.55,679.8c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.95-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.26.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z',
+            'M1065.58,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1068.38,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z',
+            'M1087.02,683.49v7.68h10.55v2.34h-13.3v-21.67h13.17v2.35h-10.42v6.96h9.05v2.34h-9.05Z',
+            'M1113.33,686.34c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77-.57-.21-1.12-.4-1.64-.57-.76-.25-1.54-.55-2.33-.9-.79-.35-1.51-.78-2.15-1.27-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7s-.53-.95-.91-1.32c-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.95,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z',
+            'M1133.83,671.83v2.4h-5.19v16.89h5.19v2.38h-13.1v-2.38h5.07v-16.89h-5.07v-2.4h13.1Z',
+            'M1151.97,691.74c-.38.32-.77.6-1.18.84-.69.42-1.44.73-2.25.93s-1.65.3-2.53.29c-.89,0-1.71-.15-2.46-.41s-1.42-.63-2.02-1.09c-.6-.46-1.12-1-1.56-1.62-.45-.63-.82-1.3-1.12-2.04-.31-.72-.54-1.49-.69-2.28-.15-.8-.24-1.61-.25-2.42v-2.51c0-.8.08-1.6.22-2.4s.34-1.57.62-2.3c.28-.73.62-1.42,1.04-2.05s.92-1.18,1.5-1.64c.58-.46,1.23-.82,1.96-1.09.73-.27,1.56-.4,2.47-.4,1.01,0,1.94.16,2.8.47.85.31,1.6.76,2.23,1.33.63.58,1.15,1.29,1.53,2.11s.62,1.73.71,2.75h-2.72c-.11-.62-.28-1.2-.51-1.73-.23-.53-.53-.98-.89-1.36-.38-.38-.82-.67-1.34-.89-.52-.21-1.12-.32-1.8-.32s-1.24.11-1.74.33c-.51.22-.95.52-1.33.9s-.69.82-.94,1.32-.45,1.03-.61,1.58c-.16.56-.27,1.12-.34,1.7-.07.58-.1,1.13-.1,1.67v2.54c0,.55.06,1.11.14,1.69.08.58.22,1.15.39,1.7s.41,1.08.68,1.58c.28.5.62.93,1.01,1.31.39.38.84.68,1.35.9.52.22,1.1.34,1.76.35.38,0,.77,0,1.18-.04.41-.04.81-.12,1.2-.24.39-.12.75-.28,1.09-.48.34-.2.62-.47.85-.8l.03-4.87h-4.41v-2.32h7.02l.04,7.95c-.34.4-.69.76-1.07,1.08Z',
+            'M1168.09,693.5l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z'
+        ].forEach(d => doDesignPath.addPath(new Path2D(d)));
+
+        const JORNADAS_CENTER = { x: 1087, y: 648 };
+        const DODESIGN_CENTER = { x: 1089, y: 683 };
 
         // ============================================
         // POINT CLASS
@@ -670,23 +335,13 @@
                 this.attachedFingerX = 0;
                 this.attachedFingerY = 0;
                 this.attachedFingerZ = 0;
-                this.lastSoundTime = 0;
             }
 
             update() {
                 if (this.attachedToFinger) {
-                    const velocityMagnitude = Math.sqrt(this.vx ** 2 + this.vy ** 2);
-
                     this.x = this.attachedFingerX;
                     this.y = this.attachedFingerY;
                     this.z = this.attachedFingerZ;
-
-                    const now = Date.now();
-                    if (velocityMagnitude > 2 && now - this.lastSoundTime > 150) {
-                        this.triggerSound(velocityMagnitude);
-                        this.lastSoundTime = now;
-                    }
-
                     this.vx = 0;
                     this.vy = 0;
                     this.vz = 0;
@@ -707,14 +362,6 @@
                     this.y += this.vy;
                     this.z += this.vz;
                 }
-            }
-
-            triggerSound(velocity) {
-                const noteIndex = Math.floor((this.col / cols) * SCALE_NOTES.length);
-                const frequency = SCALE_NOTES[Math.min(noteIndex, SCALE_NOTES.length - 1)];
-                const normalizedVelocity = Math.min(velocity / 20, 1);
-                const normalizedDepth = Math.abs(this.z) / 100;
-                playSound(frequency, normalizedVelocity, normalizedDepth);
             }
 
             reset() {
@@ -755,13 +402,57 @@
         // ============================================
         function hexToRgb(hex) {
             hex = hex.replace('#', '');
-            if (hex.length === 3) {
-                hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-            }
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            return {r, g, b};
+            if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            return {
+                r: parseInt(hex.substring(0, 2), 16),
+                g: parseInt(hex.substring(2, 4), 16),
+                b: parseInt(hex.substring(4, 6), 16)
+            };
+        }
+
+        // ============================================
+        // DISTORTION - O(1) grid lookup
+        // ============================================
+        function getDistortedPoint(x, y) {
+            if (cols === 0 || rows === 0 || !points[0]) return {x, y, z: 0};
+
+            let minX = points[0][0].originalX;
+            let minY = points[0][0].originalY;
+            let maxX = points[cols][0].originalX;
+            let maxY = points[0][rows].originalY;
+
+            if (x < minX || x > maxX || y < minY || y > maxY) return {x, y, z: 0};
+
+            let u = (x - minX) / (maxX - minX) * cols;
+            let v = (y - minY) / (maxY - minY) * rows;
+
+            let i = Math.floor(u);
+            let j = Math.floor(v);
+
+            i = Math.max(0, Math.min(cols - 1, i));
+            j = Math.max(0, Math.min(rows - 1, j));
+
+            let localU = Math.max(0, Math.min(1, u - i));
+            let localV = Math.max(0, Math.min(1, v - j));
+
+            let p1 = points[i][j];
+            let p2 = points[i + 1][j];
+            let p3 = points[i + 1][j + 1];
+            let p4 = points[i][j + 1];
+
+            let topX = p1.x + localU * (p2.x - p1.x);
+            let topY = p1.y + localU * (p2.y - p1.y);
+            let topZ = p1.z + localU * (p2.z - p1.z);
+
+            let bottomX = p4.x + localU * (p3.x - p4.x);
+            let bottomY = p4.y + localU * (p3.y - p4.y);
+            let bottomZ = p4.z + localU * (p3.z - p4.z);
+
+            return {
+                x: topX + localV * (bottomX - topX),
+                y: topY + localV * (bottomY - topY),
+                z: topZ + localV * (bottomZ - topZ)
+            };
         }
 
         // ============================================
@@ -777,13 +468,12 @@
                 }
             }
 
-            // Attach points to fingers (com Z)
+            // Attach points to fingers
             for (let finger of allFingers) {
                 for (let i = 0; i <= cols; i++) {
                     for (let j = 0; j <= rows; j++) {
                         let p = points[i][j];
                         let dist = Math.sqrt((p.x - finger.x) ** 2 + (p.y - finger.y) ** 2);
-
                         if (dist < CONFIG.captureRadius) {
                             p.attachedToFinger = true;
                             p.attachedFingerX = finger.x;
@@ -801,19 +491,185 @@
                 }
             }
 
-            // Draw wireframe (hands skeleton)
-            drawHandsWireframe();
+            // Compute SVG-to-canvas transform
+            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
+            let svgW = SVG_AREA.width * scale;
+            let svgH = SVG_AREA.height * scale;
+            let offsetX = (canvas.width - svgW) / 2;
+            let offsetY = (canvas.height - svgH) / 2;
 
-            // Draw face tracking
-            if (showFaceTracking) {
-                drawFaceTracking();
+            // SVG Layer order: Lines -> Border -> Text -> Letters -> Hand overlay
+
+            // 1. Colored lines (Layer_3)
+            drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale);
+
+            // 2. Border frame (Layer_3, last element)
+            drawDistortedBorder(offsetX, offsetY, svgW, svgH);
+
+            // 3. JORNADAS DO DESIGN text (Layer_8)
+            drawDistortedSubtitle(offsetX, offsetY, scale);
+
+            // 4. TRAMA letters (Layers 7,6,5,4,2)
+            drawDistortedLetters(offsetX, offsetY, scale);
+
+            // 5. Hand wireframe (tracking overlay)
+            drawHandsWireframe();
+        }
+
+        // ============================================
+        // DRAW FUNCTIONS
+        // ============================================
+        function drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale) {
+            const SUBDIVISIONS = 30;
+
+            for (let polyline of svgPolylines) {
+                let coords = polyline.points.trim().split(/\s+/);
+                let rawPts = [];
+
+                for (let i = 0; i < coords.length; i += 2) {
+                    rawPts.push({
+                        x: parseFloat(coords[i]),
+                        y: parseFloat(coords[i + 1])
+                    });
+                }
+
+                // Build subdivided + distorted points
+                let pts = [];
+                for (let seg = 0; seg < rawPts.length - 1; seg++) {
+                    let isLast = (seg === rawPts.length - 2);
+                    let steps = SUBDIVISIONS;
+                    for (let s = 0; s <= (isLast ? steps : steps - 1); s++) {
+                        let t = s / steps;
+                        let svgX = rawPts[seg].x + (rawPts[seg+1].x - rawPts[seg].x) * t;
+                        let svgY = rawPts[seg].y + (rawPts[seg+1].y - rawPts[seg].y) * t;
+
+                        let canvasX = (svgX / SVG_AREA.width) * svgW + offsetX;
+                        let canvasY = (svgY / SVG_AREA.height) * svgH + offsetY;
+
+                        pts.push(getDistortedPoint(canvasX, canvasY));
+                    }
+                }
+
+                if (pts.length < 2) continue;
+
+                const rgb = hexToRgb(polyline.color);
+
+                // Draw with depth-based effects
+                for (let i = 1; i < pts.length; i++) {
+                    let avgZ = (pts[i-1].z + pts[i].z) / 2;
+                    let normalizedZ = (avgZ + 150) / 300;
+                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+
+                    // At rest (z=0, normalizedZ=0.5): 4px width, full opacity
+                    let lineWidth = 4 * (0.5 + normalizedZ);
+                    let opacity = Math.min(1.0, 0.5 + normalizedZ);
+
+                    ctx.beginPath();
+                    ctx.moveTo(pts[i-1].x, pts[i-1].y);
+                    ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+                    ctx.lineWidth = lineWidth;
+
+                    // Glow for close elements
+                    if (normalizedZ > 0.7) {
+                        ctx.shadowColor = polyline.color;
+                        ctx.shadowBlur = (normalizedZ - 0.7) * 20;
+                    } else {
+                        ctx.shadowBlur = 0;
+                    }
+
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawDistortedBorder(offsetX, offsetY, svgW, svgH) {
+            const corners = [
+                {svgX: 0, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: 0},
+                {svgX: SVG_AREA.width, svgY: SVG_AREA.height},
+                {svgX: 0, svgY: SVG_AREA.height}
+            ];
+
+            const subdivisions = 20;
+            const borderPts = [];
+
+            for (let edge = 0; edge < 4; edge++) {
+                const c1 = corners[edge];
+                const c2 = corners[(edge + 1) % 4];
+
+                for (let s = 0; s < subdivisions; s++) {
+                    const t = s / subdivisions;
+                    const svgX = c1.svgX + (c2.svgX - c1.svgX) * t;
+                    const svgY = c1.svgY + (c2.svgY - c1.svgY) * t;
+
+                    const x = (svgX / SVG_AREA.width) * svgW + offsetX;
+                    const y = (svgY / SVG_AREA.height) * svgH + offsetY;
+
+                    borderPts.push(getDistortedPoint(x, y));
+                }
             }
 
-            // Draw border rectangle
-            drawDistortedBorder();
+            if (borderPts.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(borderPts[0].x, borderPts[0].y);
+                for (let i = 1; i < borderPts.length; i++) {
+                    ctx.lineTo(borderPts[i].x, borderPts[i].y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = '#f0ece6';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+        }
 
-            // Draw distorted polylines (com cores e profundidade)
-            drawDistortedPolylines();
+        function drawDistortedSubtitle(offsetX, offsetY, scale) {
+            // JORNADAS group
+            drawPath2DDistorted(jornadasPath, JORNADAS_CENTER.x, JORNADAS_CENTER.y, offsetX, offsetY, scale, false);
+            // DO DESIGN group
+            drawPath2DDistorted(doDesignPath, DODESIGN_CENTER.x, DODESIGN_CENTER.y, offsetX, offsetY, scale, false);
+        }
+
+        function drawDistortedLetters(offsetX, offsetY, scale) {
+            for (let letter of tramaPath2Ds) {
+                drawPath2DDistorted(letter.path, letter.cx, letter.cy, offsetX, offsetY, scale, true);
+            }
+        }
+
+        function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, scale, hasStroke) {
+            // Convert SVG center to canvas coords
+            let canvasX = offsetX + svgCX * scale;
+            let canvasY = offsetY + svgCY * scale;
+
+            // Get distorted position
+            let distorted = getDistortedPoint(canvasX, canvasY);
+
+            // Displacement in canvas space
+            let dx = distorted.x - canvasX;
+            let dy = distorted.y - canvasY;
+
+            // Z-based opacity
+            let normalizedZ = (distorted.z + 150) / 300;
+            normalizedZ = Math.max(0, Math.min(1, normalizedZ));
+            let opacity = Math.min(1.0, 0.5 + normalizedZ);
+
+            ctx.save();
+            ctx.translate(offsetX + dx, offsetY + dy);
+            ctx.scale(scale, scale);
+
+            // Fill
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.fill(path);
+
+            // Stroke (thin white outline matching SVG st4/st9 classes)
+            if (hasStroke) {
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.lineWidth = 0.68;
+                ctx.stroke(path);
+            }
+
+            ctx.restore();
         }
 
         function drawHandsWireframe() {
@@ -841,7 +697,7 @@
                 }
                 ctx.stroke();
 
-                // Fingertips com tamanho baseado em Z
+                // Fingertips with Z-based size
                 for (let idx of [4, 8, 12, 16, 20]) {
                     let z = landmarks[idx].z;
                     let size = 12 + z * 40;
@@ -876,318 +732,6 @@
             }
         }
 
-        function drawFaceTracking() {
-            if (!faceLandmarks) return;
-
-            const opacity = CONFIG.trackingOpacity;
-
-            const FACEMESH_TESSELATION = [
-                [127,34,139],[34,139,127],[11,0,37],[37,11,0],[232,231,120],[231,120,232],
-                [72,37,39],[37,39,72],[128,121,47],[121,47,128],[232,121,128],[121,128,232],
-                [104,69,67],[69,67,104],[175,171,148],[171,148,175],[118,50,101],[50,101,118],
-                [73,39,40],[39,40,73],[9,151,108],[151,108,9],[71,68,104],[68,104,71],
-                [67,109,10],[109,10,67],[38,71,70],[71,70,38],[156,143,116],[143,116,156],
-                [98,97,2],[326,2,97],[168,6,197],[195,5,4],[129,49,131],[49,129,209],
-                [61,146,91],[181,84,17],[314,405,321],[375,291,409],[270,269,267],
-                [0,11,12],[302,268,12],[271,304,408],[310,415,308],
-                [324,318,402],[317,14,87],[178,88,95],
-                [10,338,297],[332,284,251],[389,356,454],
-                [323,361,288],[397,365,379],[378,400,377],
-                [152,148,176],[149,150,136],[172,58,132],
-                [93,234,127],[127,162,21],[54,103,67],
-                [109,67,10],[151,9,337],
-                [10,109,338],[338,109,297],[297,109,332],[332,109,284],
-                [284,109,251],[251,109,389],[389,109,356],[356,109,454],
-                [10,67,338],[338,67,297],[297,67,332],[332,67,284],
-                [284,67,251],[251,67,389],[389,67,356],[356,67,454]
-            ];
-
-            // Mesh triangles
-            ctx.strokeStyle = `rgba(100, 200, 255, ${opacity * 0.15})`;
-            ctx.lineWidth = 0.5;
-
-            for (let triangle of FACEMESH_TESSELATION) {
-                const [a, b, c] = triangle;
-                if (a < faceLandmarks.length && b < faceLandmarks.length && c < faceLandmarks.length) {
-                    ctx.beginPath();
-                    ctx.moveTo(faceLandmarks[a].x, faceLandmarks[a].y);
-                    ctx.lineTo(faceLandmarks[b].x, faceLandmarks[b].y);
-                    ctx.lineTo(faceLandmarks[c].x, faceLandmarks[c].y);
-                    ctx.closePath();
-                    ctx.stroke();
-                }
-            }
-
-            // Eyes
-            const LEFT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
-            const RIGHT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
-
-            for (let eye of [LEFT_EYE, RIGHT_EYE]) {
-                ctx.strokeStyle = `rgba(0, 255, 255, ${opacity * 0.8})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                for (let i = 0; i < eye.length; i++) {
-                    const idx = eye[i];
-                    if (idx < faceLandmarks.length) {
-                        if (i === 0) ctx.moveTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
-                        else ctx.lineTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
-                    }
-                }
-                ctx.closePath();
-                ctx.stroke();
-            }
-
-            // Lips
-            const LIPS_OUTER = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185, 61];
-            const LIPS_INNER = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
-
-            for (let lips of [LIPS_OUTER, LIPS_INNER]) {
-                ctx.strokeStyle = `rgba(255, 0, 170, ${opacity * 0.7})`;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                for (let i = 0; i < lips.length; i++) {
-                    const idx = lips[i];
-                    if (idx < faceLandmarks.length) {
-                        if (i === 0) ctx.moveTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
-                        else ctx.lineTo(faceLandmarks[idx].x, faceLandmarks[idx].y);
-                    }
-                }
-                ctx.stroke();
-            }
-        }
-
-        // ============================================
-        // DISTORTED BORDER
-        // ============================================
-        function drawDistortedBorder() {
-            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
-            let svgW = SVG_AREA.width * scale;
-            let svgH = SVG_AREA.height * scale;
-            let offsetX = (canvas.width - svgW) / 2;
-            let offsetY = (canvas.height - svgH) / 2;
-
-            // 4 corners of the border rect, distorted
-            const corners = [
-                {svgX: 0, svgY: 0},
-                {svgX: SVG_AREA.width, svgY: 0},
-                {svgX: SVG_AREA.width, svgY: SVG_AREA.height},
-                {svgX: 0, svgY: SVG_AREA.height}
-            ];
-
-            // Subdivide each edge for smoother distortion
-            const subdivisions = 20;
-            const borderPts = [];
-
-            for (let edge = 0; edge < 4; edge++) {
-                const c1 = corners[edge];
-                const c2 = corners[(edge + 1) % 4];
-
-                for (let s = 0; s < subdivisions; s++) {
-                    const t = s / subdivisions;
-                    const svgX = c1.svgX + (c2.svgX - c1.svgX) * t;
-                    const svgY = c1.svgY + (c2.svgY - c1.svgY) * t;
-
-                    const x = (svgX / SVG_AREA.width) * svgW + offsetX;
-                    const y = (svgY / SVG_AREA.height) * svgH + offsetY;
-
-                    borderPts.push(getDistortedPoint(x, y));
-                }
-            }
-
-            // Draw border
-            if (borderPts.length > 0) {
-                ctx.beginPath();
-                ctx.moveTo(borderPts[0].x, borderPts[0].y);
-                for (let i = 1; i < borderPts.length; i++) {
-                    ctx.lineTo(borderPts[i].x, borderPts[i].y);
-                }
-                ctx.closePath();
-                ctx.strokeStyle = 'rgba(240, 236, 230, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-        }
-
-        // ============================================
-        // DISTORTED POLYLINES - com cores do SVG
-        // ============================================
-        function drawDistortedPolylines() {
-            let scale = Math.min(canvas.width / SVG_AREA.width, canvas.height / SVG_AREA.height) * 0.8;
-            let svgW = SVG_AREA.width * scale;
-            let svgH = SVG_AREA.height * scale;
-            let offsetX = (canvas.width - svgW) / 2;
-            let offsetY = (canvas.height - svgH) / 2;
-
-            for (let polyline of svgPolylines) {
-                let coords = polyline.points.trim().split(/\s+/);
-                let pts = [];
-
-                for (let i = 0; i < coords.length; i += 2) {
-                    let svgX = parseFloat(coords[i]);
-                    let svgY = parseFloat(coords[i + 1]);
-
-                    // Map from SVG space to canvas space
-                    let x = ((svgX - SVG_AREA.x) / SVG_AREA.width) * svgW + offsetX;
-                    let y = ((svgY - SVG_AREA.y) / SVG_AREA.height) * svgH + offsetY;
-
-                    let distorted = getDistortedPoint(x, y);
-                    pts.push(distorted);
-                }
-
-                if (pts.length < 2) continue;
-
-                // Parse the polyline color
-                const rgb = hexToRgb(polyline.color);
-
-                // Draw each segment with depth-based thickness and opacity
-                ctx.beginPath();
-                ctx.moveTo(pts[0].x, pts[0].y);
-
-                for (let i = 1; i < pts.length; i++) {
-                    let avgZ = (pts[i-1].z + pts[i].z) / 2;
-                    let normalizedZ = (avgZ + 150) / 300;
-                    normalizedZ = Math.max(0, Math.min(1, normalizedZ));
-
-                    // Thickness based on depth (closer = thicker)
-                    let lineWidth = 4 * (0.5 + normalizedZ * 2);
-
-                    // Opacity based on depth (closer = more visible)
-                    let opacity = 0.4 + normalizedZ * 0.6;
-
-                    ctx.lineWidth = lineWidth;
-                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
-
-                    // Glow for close elements
-                    if (normalizedZ > 0.6) {
-                        ctx.shadowColor = polyline.color;
-                        ctx.shadowBlur = (normalizedZ - 0.6) * 25;
-                    } else {
-                        ctx.shadowBlur = 0;
-                    }
-
-                    ctx.lineTo(pts[i].x, pts[i].y);
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(pts[i].x, pts[i].y);
-                }
-
-                ctx.shadowBlur = 0;
-            }
-
-            // Draw TRAMA text + JORNADAS DO DESIGN subtitle
-            drawDistortedTRAMA(offsetX, offsetY, svgW, svgH);
-        }
-
-        function drawDistortedTRAMA(offsetX, offsetY, svgW, svgH) {
-            // TRAMA - Large title
-            let word = 'TRAMA';
-            let letterSpacing = svgW / 8;
-            let startX = offsetX + svgW / 2 - (word.length * letterSpacing) / 2;
-            let centerY = offsetY + svgH * 0.45;
-
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            for (let i = 0; i < word.length; i++) {
-                let x = startX + i * letterSpacing + letterSpacing / 2;
-                let y = centerY;
-
-                let distorted = getDistortedPoint(x, y);
-
-                let normalizedZ = (distorted.z + 150) / 300;
-                normalizedZ = Math.max(0, Math.min(1, normalizedZ));
-
-                let size = 100 * (0.6 + normalizedZ * 0.8);
-                let opacity = 0.5 + normalizedZ * 0.5;
-
-                ctx.font = `bold ${size}px Helvetica`;
-                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-
-                if (normalizedZ > 0.6) {
-                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-                    ctx.shadowBlur = (normalizedZ - 0.6) * 40;
-                } else {
-                    ctx.shadowBlur = 0;
-                }
-
-                ctx.save();
-                ctx.translate(distorted.x, distorted.y);
-                ctx.fillText(word[i], 0, 0);
-                ctx.restore();
-            }
-
-            // JORNADAS DO DESIGN - Subtitle
-            let subtitle = 'JORNADAS DO DESIGN';
-            let subY = offsetY + svgH * 0.62;
-            let subX = offsetX + svgW / 2;
-
-            let distortedSub = getDistortedPoint(subX, subY);
-
-            let nZ = (distortedSub.z + 150) / 300;
-            nZ = Math.max(0, Math.min(1, nZ));
-
-            let subSize = 28 * (0.6 + nZ * 0.8);
-            let subOpacity = 0.4 + nZ * 0.5;
-
-            ctx.font = `300 ${subSize}px Helvetica`;
-            ctx.fillStyle = `rgba(255, 255, 255, ${subOpacity})`;
-            ctx.letterSpacing = '8px';
-
-            if (nZ > 0.6) {
-                ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
-                ctx.shadowBlur = (nZ - 0.6) * 20;
-            } else {
-                ctx.shadowBlur = 0;
-            }
-
-            ctx.save();
-            ctx.translate(distortedSub.x, distortedSub.y);
-            ctx.fillText(subtitle, 0, 0);
-            ctx.restore();
-
-            ctx.letterSpacing = '0px';
-            ctx.shadowBlur = 0;
-        }
-
-        function getDistortedPoint(x, y) {
-            for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
-                    let p1 = points[i][j];
-                    let p2 = points[i + 1][j];
-                    let p3 = points[i + 1][j + 1];
-                    let p4 = points[i][j + 1];
-
-                    if (x >= Math.min(p1.originalX, p2.originalX, p3.originalX, p4.originalX) &&
-                        x <= Math.max(p1.originalX, p2.originalX, p3.originalX, p4.originalX) &&
-                        y >= Math.min(p1.originalY, p2.originalY, p3.originalY, p4.originalY) &&
-                        y <= Math.max(p1.originalY, p2.originalY, p3.originalY, p4.originalY)) {
-
-                        let u = (x - p1.originalX) / (p2.originalX - p1.originalX);
-                        let v = (y - p1.originalY) / (p4.originalY - p1.originalY);
-
-                        u = Math.max(0, Math.min(1, u));
-                        v = Math.max(0, Math.min(1, v));
-
-                        let topX = p1.x + u * (p2.x - p1.x);
-                        let topY = p1.y + u * (p2.y - p1.y);
-                        let topZ = p1.z + u * (p2.z - p1.z);
-
-                        let bottomX = p4.x + u * (p3.x - p4.x);
-                        let bottomY = p4.y + u * (p3.y - p4.y);
-                        let bottomZ = p4.z + u * (p3.z - p4.z);
-
-                        return {
-                            x: topX + v * (bottomX - topX),
-                            y: topY + v * (bottomY - topY),
-                            z: topZ + v * (bottomZ - topZ)
-                        };
-                    }
-                }
-            }
-            return {x, y, z: 0};
-        }
-
         // ============================================
         // HAND TRACKING
         // ============================================
@@ -1196,8 +740,6 @@
             btn.disabled = true;
             btn.textContent = 'A iniciar...';
             document.getElementById('status').textContent = 'A iniciar câmera...';
-
-            initAudio();
 
             try {
                 hands = new Hands({
@@ -1213,26 +755,10 @@
 
                 hands.onResults(onHandResults);
 
-                faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-                });
-
-                faceMesh.setOptions({
-                    maxNumFaces: 1,
-                    refineLandmarks: true,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
-                });
-
-                faceMesh.onResults(onFaceResults);
-
                 camera = new Camera(webcam, {
                     onFrame: async () => {
                         if (isRunning) {
                             await hands.send({ image: webcam });
-                            if (showFaceTracking) {
-                                await faceMesh.send({ image: webcam });
-                            }
                         }
                     },
                     width: 1280,
@@ -1261,7 +787,6 @@
         function stopCamera() {
             isRunning = false;
             if (camera) camera.stop();
-
             document.getElementById('status').textContent = 'Câmera desligada';
 
             const btn = document.getElementById('enableCamera');
@@ -1300,18 +825,6 @@
             }
         }
 
-        function onFaceResults(results) {
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const lm = results.multiFaceLandmarks[0];
-                faceLandmarks = lm.map(p => ({
-                    x: (1 - p.x) * canvas.width,
-                    y: p.y * canvas.height
-                }));
-            } else {
-                faceLandmarks = null;
-            }
-        }
-
         // ============================================
         // ANIMATION LOOP
         // ============================================
@@ -1329,26 +842,15 @@
             CONFIG.gridDensity = parseInt(document.getElementById('gridDensity').value);
             CONFIG.captureRadius = parseInt(document.getElementById('captureRadius').value);
             CONFIG.videoOpacity = parseInt(document.getElementById('videoOpacity').value) / 100;
-            CONFIG.soundVolume = parseInt(document.getElementById('soundVolume').value) / 100;
             CONFIG.trackingOpacity = parseInt(document.getElementById('trackingOpacity').value) / 100;
 
             document.getElementById('elasticity-value').textContent = CONFIG.elasticity.toFixed(2);
             document.getElementById('density-value').textContent = CONFIG.gridDensity;
             document.getElementById('capture-value').textContent = CONFIG.captureRadius;
             document.getElementById('opacity-value').textContent = document.getElementById('videoOpacity').value + '%';
-            document.getElementById('volume-value').textContent = document.getElementById('soundVolume').value + '%';
             document.getElementById('tracking-opacity-value').textContent = document.getElementById('trackingOpacity').value + '%';
 
             webcam.style.opacity = CONFIG.videoOpacity;
-
-            if (masterGain) {
-                masterGain.gain.value = CONFIG.soundVolume;
-            }
-        }
-
-        function updateOctaveDisplay() {
-            const sign = currentOctave > 0 ? '+' : '';
-            document.getElementById('octave-value').textContent = sign + currentOctave;
         }
 
         // ============================================
@@ -1394,33 +896,7 @@
 
             document.getElementById('captureRadius').addEventListener('input', updateSliders);
             document.getElementById('videoOpacity').addEventListener('input', updateSliders);
-            document.getElementById('soundVolume').addEventListener('input', updateSliders);
             document.getElementById('trackingOpacity').addEventListener('input', updateSliders);
-
-            // Instrument selector
-            document.getElementById('instrumentSelect').addEventListener('change', (e) => {
-                currentInstrument = e.target.value;
-            });
-
-            // Face tracking toggle
-            document.getElementById('faceTracking').addEventListener('change', (e) => {
-                showFaceTracking = e.target.checked;
-            });
-
-            // Octave controls
-            document.getElementById('octaveUp').addEventListener('click', () => {
-                if (currentOctave < 6) {
-                    currentOctave++;
-                    updateOctaveDisplay();
-                }
-            });
-
-            document.getElementById('octaveDown').addEventListener('click', () => {
-                if (currentOctave > -6) {
-                    currentOctave--;
-                    updateOctaveDisplay();
-                }
-            });
 
             // Camera button
             document.getElementById('enableCamera').addEventListener('click', startCamera);
