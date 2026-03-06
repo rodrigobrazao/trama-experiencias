@@ -520,29 +520,8 @@
         }
 
         // ============================================
-        // SVG DRAW FUNCTIONS (with depth-of-field)
+        // SVG DRAW FUNCTIONS
         // ============================================
-
-        /**
-         * Depth-of-field helpers:
-         * nZ normalization: (z + 150) / 300, clamped [0, 1]
-         *   0.5 = neutral (at rest), >0.5 = closer to camera, <0.5 = further
-         *
-         * Blur:  far elements blur up to 5px, close elements stay sharp
-         * Glow:  close elements (nZ > 0.65) get white/colored glow
-         * Scale: letters scale ±7.5% based on depth
-         */
-        function getDepthBlur(nZ) {
-            // 0px at nZ >= 0.5 (neutral/close), up to 5px at nZ = 0
-            return Math.max(0, (0.5 - nZ) * 10);
-        }
-
-        function getDepthGlow(nZ) {
-            // Glow intensity for close elements
-            if (nZ > 0.65) return (nZ - 0.65) * 30;
-            return 0;
-        }
-
         function drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale) {
             const SUB = 30;
             for (let polyline of svgPolylines) {
@@ -562,32 +541,13 @@
                 const rgb = hexToRgb(polyline.color);
                 for (let i = 1; i < pts.length; i++) {
                     let nZ = Math.max(0, Math.min(1, ((pts[i-1].z + pts[i].z) / 2 + 150) / 300));
-                    let blur = getDepthBlur(nZ);
-                    let glow = getDepthGlow(nZ);
-
-                    ctx.save();
-                    // Apply depth blur for far segments
-                    if (blur > 0.2) {
-                        ctx.filter = `blur(${blur.toFixed(1)}px)`;
-                    }
-
-                    ctx.beginPath();
-                    ctx.moveTo(pts[i-1].x, pts[i-1].y);
-                    ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.beginPath(); ctx.moveTo(pts[i-1].x, pts[i-1].y); ctx.lineTo(pts[i].x, pts[i].y);
                     ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${Math.min(1, 0.5 + nZ)})`;
                     ctx.lineWidth = 4 * (0.5 + nZ);
-
-                    // Enhanced glow for close elements
-                    if (glow > 0) {
-                        ctx.shadowColor = polyline.color;
-                        ctx.shadowBlur = glow;
-                    } else if (nZ > 0.7) {
-                        ctx.shadowColor = polyline.color;
-                        ctx.shadowBlur = (nZ - 0.7) * 20;
-                    }
+                    if (nZ > 0.7) { ctx.shadowColor = polyline.color; ctx.shadowBlur = (nZ - 0.7) * 20; } else { ctx.shadowBlur = 0; }
                     ctx.stroke();
-                    ctx.restore();
                 }
+                ctx.shadowBlur = 0;
             }
         }
 
@@ -601,42 +561,10 @@
                     bPts.push(getDistortedPoint((c1.svgX + (c2.svgX-c1.svgX)*t) / SVG_AREA.width * svgW + offsetX, (c1.svgY + (c2.svgY-c1.svgY)*t) / SVG_AREA.height * svgH + offsetY));
                 }
             }
-            if (bPts.length > 1) {
-                // Draw border per-segment with depth effects
-                for (let i = 1; i < bPts.length; i++) {
-                    let nZ = Math.max(0, Math.min(1, ((bPts[i-1].z + bPts[i].z) / 2 + 150) / 300));
-                    let blur = getDepthBlur(nZ);
-                    let glow = getDepthGlow(nZ);
-
-                    ctx.save();
-                    if (blur > 0.2) {
-                        ctx.filter = `blur(${blur.toFixed(1)}px)`;
-                    }
-                    ctx.beginPath();
-                    ctx.moveTo(bPts[i-1].x, bPts[i-1].y);
-                    ctx.lineTo(bPts[i].x, bPts[i].y);
-                    ctx.strokeStyle = `rgba(240,236,230,${Math.min(1, 0.5 + nZ)})`;
-                    ctx.lineWidth = 4 * (0.5 + nZ * 0.5);
-
-                    if (glow > 0) {
-                        ctx.shadowColor = '#ffffff';
-                        ctx.shadowBlur = glow;
-                    }
-                    ctx.stroke();
-                    ctx.restore();
-                }
-                // Close the border (last to first)
-                let nZc = Math.max(0, Math.min(1, ((bPts[bPts.length-1].z + bPts[0].z) / 2 + 150) / 300));
-                let blurc = getDepthBlur(nZc);
-                ctx.save();
-                if (blurc > 0.2) ctx.filter = `blur(${blurc.toFixed(1)}px)`;
-                ctx.beginPath();
-                ctx.moveTo(bPts[bPts.length-1].x, bPts[bPts.length-1].y);
-                ctx.lineTo(bPts[0].x, bPts[0].y);
-                ctx.strokeStyle = `rgba(240,236,230,${Math.min(1, 0.5 + nZc)})`;
-                ctx.lineWidth = 4 * (0.5 + nZc * 0.5);
-                ctx.stroke();
-                ctx.restore();
+            if (bPts.length > 0) {
+                ctx.beginPath(); ctx.moveTo(bPts[0].x, bPts[0].y);
+                for (let i = 1; i < bPts.length; i++) ctx.lineTo(bPts[i].x, bPts[i].y);
+                ctx.closePath(); ctx.strokeStyle = '#f0ece6'; ctx.lineWidth = 4; ctx.stroke();
             }
         }
 
@@ -652,41 +580,10 @@
         function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, scale, hasStroke) {
             let cX = offsetX + svgCX * scale, cY = offsetY + svgCY * scale;
             let d = getDistortedPoint(cX, cY), dx = d.x - cX, dy = d.y - cY;
-            let nZ = Math.max(0, Math.min(1, (d.z + 150) / 300));
-            let op = Math.min(1, 0.5 + nZ);
-            let blur = getDepthBlur(nZ);
-            let glow = getDepthGlow(nZ);
-
-            // Depth-based scale: close = slightly bigger, far = slightly smaller
-            let depthScale = 1 + (nZ - 0.5) * 0.15;
-            let totalScale = scale * depthScale;
-
-            // Adjust offset to keep centered during scale change
-            let scaleOffsetX = offsetX + dx + svgCX * (scale - totalScale);
-            let scaleOffsetY = offsetY + dy + svgCY * (scale - totalScale);
-
-            ctx.save();
-
-            // Apply depth blur for far elements
-            if (blur > 0.2) {
-                ctx.filter = `blur(${blur.toFixed(1)}px)`;
-            }
-
-            // Apply close glow
-            if (glow > 0) {
-                ctx.shadowColor = '#ffffff';
-                ctx.shadowBlur = glow;
-            }
-
-            ctx.translate(scaleOffsetX, scaleOffsetY);
-            ctx.scale(totalScale, totalScale);
-            ctx.fillStyle = `rgba(255,255,255,${op})`;
-            ctx.fill(path);
-            if (hasStroke) {
-                ctx.strokeStyle = `rgba(255,255,255,${op})`;
-                ctx.lineWidth = 0.68 / depthScale;
-                ctx.stroke(path);
-            }
+            let nZ = Math.max(0, Math.min(1, (d.z + 150) / 300)), op = Math.min(1, 0.5 + nZ);
+            ctx.save(); ctx.translate(offsetX + dx, offsetY + dy); ctx.scale(scale, scale);
+            ctx.fillStyle = `rgba(255,255,255,${op})`; ctx.fill(path);
+            if (hasStroke) { ctx.strokeStyle = `rgba(255,255,255,${op})`; ctx.lineWidth = 0.68; ctx.stroke(path); }
             ctx.restore();
         }
 
